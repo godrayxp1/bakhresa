@@ -1,199 +1,89 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Godray • Messenger</title>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
-    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
-    import { getFirestore, doc, setDoc, getDoc, onSnapshot, collection, query, where, orderBy, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
-
-    const app = initializeApp({
-      apiKey: "AIzaSyB1Dnku0qGEWxLS9R8Mz5neKSReAyuypBs",
-      authDomain: "bakhresa-b6176.firebaseapp.com",
-      projectId: "bakhresa-b6176",
-      storageBucket: "bakhresa-b6176.firebasestorage.app",
-      messagingSenderId: "676670596170",
-      appId: "1:676670596170:web:e56892493c3e3b69d6b2b3"
-    });
-
-    const auth = getAuth(app);
-    const db = getFirestore(app);
-
-    let me = null;
-    let activeChat = null;
-
-    const loginBox = document.getElementById("loginBox");
-    const appUI = document.getElementById("app");
-    const userList = document.getElementById("userList");
-    const chatName = document.getElementById("chatName");
-    const messagesArea = document.getElementById("messages");
-    const messageInput = document.getElementById("messageInput");
-
-    // ===== LOGIN / REGISTER =====
-    window.login = async () => {
-      const email = document.getElementById("email").value.trim();
-      const pass = document.getElementById("pass").value;
-      const username = document.getElementById("username").value.trim().toLowerCase().replace(/[^a-z0-9_]/g, "");
-
-      if (!email || !pass || username.length < 3) {
-        alert("Email, password, and username (min 3 chars) required");
-        return;
-      }
-
-      try {
-        // Try login first
-        await signInWithEmailAndPassword(auth, email, pass);
-      } catch (err) {
-        // If failed → create new account
-        if (err.code === "auth/user-not-found" || err.code === "auth/wrong-password") {
-          await createUserWithEmailAndPassword(auth, email, pass);
-        } else {
-          alert(err.message);
-          return;
-        }
-      }
-
-      // Save username & online status
-      await setDoc(doc(db, "users", auth.currentUser.uid), {
-        username,
-        email,
-        online: true,
-        lastSeen: serverTimestamp()
-      }, { merge: true });
-    };
-
-    // ===== AUTH STATE CHANGE =====
-    onAuthStateChanged(auth, async (user) => {
-      if (!user) {
-        loginBox.style.display = "flex";
-        appUI.style.display = "none";
-        return;
-      }
-
-      const userDoc = await getDoc(doc(db, "users", user.uid));
-      if (!userDoc.exists()) {
-        // Rare case: user signed in but profile missing → log out
-        auth.signOut();
-        return;
-      }
-
-      me = userDoc.data();
-      loginBox.style.display = "none";
-      appUI.style.display = "flex";
-      document.getElementById("myName").textContent = "@" + me.username;
-
-      // Keep online status alive
-      const userRef = doc(db, "users", user.uid);
-      const updateOnline = () => setDoc(userRef, { online: true, lastSeen: serverTimestamp() }, { merge: true });
-      updateOnline();
-      window.addEventListener("beforeunload", () => setDoc(userRef, { online: false, lastSeen: serverTimestamp() }, { merge: true }));
-      setInterval(updateOnline, 30000);
-
-      loadUsers();
-    });
-
-    // ===== LOAD USERS LIST =====
-    function loadUsers() {
-      onSnapshot(collection(db, "users"), snap => {
-        userList.innerHTML = "";
-        snap.forEach(d => {
-          const u = d.data();
-          if (!u.username || u.username === me.username) return;
-
-          const el = document.createElement("div");
-          el.className = "user-item";
-          el.innerHTML = `
-            <div class="avatar">${u.username[0].toUpperCase()}</div>
-            <div class="user-info">
-              <div class="name">@${u.username}</div>
-              <div class="status">${u.online ? "Online" : "Last seen recently"}</div>
-            </div>
-            ${u.online ? '<i class="online-dot"></i>' : ''}
-          `;
-          el.onclick = () => openChat(u.username);
-          userList.appendChild(el);
-        });
-      });
-    }
-
-    // ===== OPEN CHAT =====
-    function openChat(username) {
-      activeChat = username;
-      chatName.textContent = "@" + username;
-      messagesArea.innerHTML = "<div style='text-align:center;color:#666;padding:30px'>Start chatting with @" + username + "</div>";
-      loadMessages();
-    }
-
-    function chatId(a, b) { return a < b ? `${a}_${b}` : `${b}_${a}`; }
-
-    // ===== LOAD MESSAGES =====
-    function loadMessages() {
-      if (!activeChat) return;
-      const id = chatId(me.username, activeChat);
-      onSnapshot(query(collection(db, "messages"), where("chatId", "==", id), orderBy("time")), snap => {
-        messagesArea.innerHTML = "";
-        snap.forEach(d => {
-          const m = d.data();
-          const bubble = document.createElement("div");
-          bubble.className = `message ${m.from === me.username ? "sent" : "received"}`;
-          bubble.innerHTML = `
-            <div class="text">${m.text}</div>
-            <div class="time">${m.time ? new Date(m.time.toDate()).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ""}</div>
-          `;
-          messagesArea.appendChild(bubble);
-        });
-        messagesArea.scrollTop = messagesArea.scrollHeight;
-      });
-    }
-
-    // ===== SEND MESSAGE =====
-    window.sendMessage = async () => {
-      const text = messageInput.value.trim();
-      if (!text || !activeChat) return;
-
-      const id = chatId(me.username, activeChat);
-      await addDoc(collection(db, "messages"), {
-        chatId: id,
-        from: me.username,
-        to: activeChat,
-        text,
-        time: serverTimestamp()
-      });
-      messageInput.value = "";
-    };
-
-    messageInput.addEventListener("keypress", e => e.key === "Enter" && sendMessage());
-  </script>
-
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Bakhresa – Secure Messaging</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    :root { --primary: #00ff9d; --bg: #000; --card: #111; --text: #fff; }
-    body { margin:0; font-family:system-ui; background:var(--bg); color:var(--text); height:100vh; overflow:hidden; }
-    #loginBox { display:flex; flex-direction:column; justify-content:center; align-items:center; background:linear-gradient(135deg,#000,#003322); height:100vh; }
-    #loginBox input, #loginBox button { width:320px; padding:16px; margin:10px; border:none; border-radius:50px; font-size:1.1em; }
-    #loginBox button { background:var(--primary); color:#000; font-weight:bold; cursor:pointer; }
-    #app { display:none; flex-direction:row; height:100vh; }
-    #sidebar { width:340px; background:#080808; border-right:1px solid #222; overflow-y:auto; }
-    #header { padding:20px; text-align:center; border-bottom:1px solid #222; }
-    #header h1 { margin:0; color:var(--primary); }
-    .user-item { display:flex; align-items:center; padding:14px; border-radius:12px; margin:6px 10px; cursor:pointer; position:relative; transition:0.2s; }
-    .user-item:hover { background:#1a1a1a; }
-    .avatar { width:50px; height:50px; border-radius:50%; background:var(--primary); color:#000; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:1.3em; margin-right:14px; }
-    .user-info .name { font-weight:600; }
-    .user-info .status { font-size:0.8em; opacity:0.7; }
-    .online-dot { position:absolute; bottom:18px; left:48px; width:14px; height:14px; background:var(--primary); border:3px solid #000; border-radius:50%; }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family: 'Inter', sans-serif; background: #0f6d54; display:flex; justify-content:center; align-items:center; min-height:100vh; }
+    .container { background:white; width:420px; border-radius:16px; padding:40px 32px; box-shadow:0 20px 40px rgba(0,0,0,0.15); text-align:center; }
+    h1 { font-size:28px; margin-bottom:8px; color:#111; }
+    p { color:#555; margin-bottom:24px; }
+    input { width:100%; padding:16px; margin:12px 0; border:1px solid #ddd; border-radius:12px; font-size:16px; }
+    button { width:100%; padding:16px; background:#0f6d54; color:white; border:none; border-radius:12px; font-size:16px; font-weight:600; cursor:pointer; margin-top:12px; }
+    button:hover { background:#0b5a47; }
+    .hidden { display:none; }
+    .error { color:#d32f2f; margin-top:12px; font-size:14px; }
+    .success { color:#0f6d54; font-weight:600; margin-top:20px; }
+  </style>
+</head>
+<body>
+  <div class="container">
 
-    #chatArea { flex:1; display:flex; flex-direction:column; background:#0a0a0a; }
-    #chatHeader { padding:20px; border-bottom:1px solid #222; font-size:1.4em; font-weight:600; color:var(--primary); }
-    #messages { flex:1; overflow-y:auto; padding:20px; }
-    .message { max-width:70%; margin:10px 0; clear:both; }
-    .sent { float:right; }
-    .received { float:left; }
-    .message .text { padding:12px 18px; border-radius:18px; margin-bottom:4px; }
-    .sent .text { background:var(--primary); color:#000; border-bottom-right-radius:4px; }
-    .received .text { background:#222; border-bottom-left-radius:4px; }
-    .message .time { font-size:0.7em; opacity:0.6; padding:0 18px; }
+    <!-- Signup Screen -->
+    <div id="signup">
+      <h1>Welcome to Bakhresa</h1>
+      <p>Create your secure account</p>
+      <input type="email" id="email" placeholder="Email address" required />
+      <input type="password" id="password" placeholder="Password (min. 6 characters)" minlength="6" required />
+      <button id="signup-btn">Create Account</button>
+      <p id="error1" class="error"></p>
+    </div>
 
-    #inputArea { padding:15px; background:#000; border-top:1px solid #222;
+    <!-- Verification Screen -->
+    <div id="verify" class="hidden">
+      <h1>Check Your Email</h1>
+      <p>We sent a verification link to<br><strong id="email-display"></strong></p>
+      <p>Click the link in the email to activate your account.</p>
+      <div class="success">You can close this tab after clicking the link.</div>
+      <p id="error2" class="error"></p>
+    </div>
+
+    <!-- Success Screen -->
+    <div id="success" class="hidden">
+      <h1>Verified Successfully!</h1>
+      <p>Welcome! Your account is ready.</p>
+      <button onclick="location.href='chat.html'">Open Chat Dashboard</button>
+    </div>
+
+  </div>
+
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2'
+
+    const supabaseUrl = 'https://osaxbfinrlnabjllcfgv.supabase.co'
+    const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9zYXhiZmlucmxuYWJqbGxjZmd2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU1MDY4OTEsImV4cCI6MjA4MTA4Mjg5MX0.qiQzxhYAgd3S_PZUBrT0eYsMfPgSRqP9j7LQq1h4iQE'
+
+    const supabase = createClient(supabaseUrl, supabaseAnonKey)
+
+    document.getElementById('signup-btn').onclick = async () => {
+      const email = document.getElementById('email').value.trim()
+      const password = document.getElementById('password').value
+
+      const { error } = await supabase.auth.signUp({ 
+        email, 
+        password,
+        options: { emailRedirectTo: location.href }  // auto-return here after verification
+      })
+
+      if (error) {
+        document.getElementById('error1').textContent = error.message
+      } else {
+        document.getElementById('email-display').textContent = email
+        document.getElementById('signup').classList.add('hidden')
+        document.getElementById('verify').classList.remove('hidden')
+      }
+    }
+
+    // Auto-detect when user clicks verification link and comes back
+    supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session?.user?.email_confirmed_at) {
+        document.getElementById('verify').classList.add('hidden')
+        document.getElementById('success').classList.remove('hidden')
+      }
+    })
+  </script>
+</body>
+</html>
