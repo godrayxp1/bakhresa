@@ -7,16 +7,51 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
-    body { font-family: 'Inter', sans-serif; background: #0f6d54; display:flex; justify-content:center; align-items:center; min-height:100vh; }
-    .container { background:white; width:420px; border-radius:16px; padding:40px 32px; box-shadow:0 20px 40px rgba(0,0,0,0.15); text-align:center; }
-    h1 { font-size:28px; margin-bottom:8px; color:#111; }
-    p { color:#555; margin-bottom:24px; }
-    input { width:100%; padding:16px; margin:12px 0; border:1px solid #ddd; border-radius:12px; font-size:16px; }
-    button { width:100%; padding:16px; background:#0f6d54; color:white; border:none; border-radius:12px; font-size:16px; font-weight:600; cursor:pointer; margin-top:12px; }
+    body { 
+      font-family: 'Inter', sans-serif; 
+      background: #0f6d54; 
+      display:flex; 
+      justify-content:center; 
+      align-items:center; 
+      min-height:100vh; 
+      color: #333;
+    }
+    .container { 
+      background:white; 
+      width:420px; 
+      max-width:90%; 
+      border-radius:16px; 
+      padding:40px 32px; 
+      box-shadow:0 20px 40px rgba(0,0,0,0.15); 
+      text-align:center; 
+    }
+    h1 { font-size:28px; margin-bottom:8px; }
+    p { color:#555; margin-bottom:24px; line-height:1.5; }
+    input { 
+      width:100%; 
+      padding:16px; 
+      margin:12px 0; 
+      border:1px solid #ddd; 
+      border-radius:12px; 
+      font-size:16px; 
+    }
+    button { 
+      width:100%; 
+      padding:16px; 
+      background:#0f6d54; 
+      color:white; 
+      border:none; 
+      border-radius:12px; 
+      font-size:16px; 
+      font-weight:600; 
+      cursor:pointer; 
+      margin-top:12px; 
+    }
     button:hover { background:#0b5a47; }
     .hidden { display:none; }
     .error { color:#d32f2f; margin-top:12px; font-size:14px; }
-    .success { color:#0f6d54; font-weight:600; margin-top:20px; }
+    .success { color:#0f6d54; font-weight:600; margin:20px 0; }
+    .logo { font-size:36px; margin-bottom:20px; }
   </style>
 </head>
 <body>
@@ -24,10 +59,11 @@
 
     <!-- Signup Screen -->
     <div id="signup">
-      <h1>Welcome to Bakhresa</h1>
-      <p>Create your secure account</p>
-      <input type="email" id="email" placeholder="Email address" required />
-      <input type="password" id="password" placeholder="Password (min. 6 characters)" minlength="6" required />
+      <div class="logo">Bakhresa</div>
+      <h1>Create Your Account</h1>
+      <p>Secure messaging platform</p>
+      <input type="email" id="email" placeholder="Enter your email" required />
+      <input type="password" id="password" placeholder="Choose password (6+ characters)" minlength="6" required />
       <button id="signup-btn">Create Account</button>
       <p id="error1" class="error"></p>
     </div>
@@ -35,55 +71,70 @@
     <!-- Verification Screen -->
     <div id="verify" class="hidden">
       <h1>Check Your Email</h1>
-      <p>We sent a verification link to<br><strong id="email-display"></strong></p>
-      <p>Click the link in the email to activate your account.</p>
-      <div class="success">You can close this tab after clicking the link.</div>
+      <p>We sent a verification link to:</p>
+      <strong id="email-display" style="font-size:18px;color:#0f6d54"></strong>
+      <div class="success">Click the link in the email to activate your account</div>
+      <p>After clicking, come back here — you’ll be logged in automatically.</p>
       <p id="error2" class="error"></p>
     </div>
 
     <!-- Success Screen -->
     <div id="success" class="hidden">
-      <h1>Verified Successfully!</h1>
-      <p>Welcome! Your account is ready.</p>
+      <h1>Welcome!</h1>
+      <p>Your account is verified and ready.</p>
       <button onclick="location.href='chat.html'">Open Chat Dashboard</button>
     </div>
 
   </div>
 
+  <!-- THIS IS THE FIXED SCRIPT – NO BLACK SCREEN -->
   <script type="module">
-    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2'
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js'
 
     const supabaseUrl = 'https://osaxbfinrlnabjllcfgv.supabase.co'
     const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9zYXhiZmlucmxuYWJqbGxjZmd2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU1MDY4OTEsImV4cCI6MjA4MTA4Mjg5MX0.qiQzxhYAgd3S_PZUBrT0eYsMfPgSRqP9j7LQq1h4iQE'
 
     const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
-    document.getElementById('signup-btn').onclick = async () => {
+    const signupBtn = document.getElementById('signup-btn')
+    const emailDisplay = document.getElementById('email-display')
+
+    signupBtn.onclick = async () => {
       const email = document.getElementById('email').value.trim()
       const password = document.getElementById('password').value
 
-      const { error } = await supabase.auth.signUp({ 
-        email, 
+      const { data, error } = await supabase.auth.signUp({
+        email,
         password,
-        options: { emailRedirectTo: location.href }  // auto-return here after verification
+        options: {
+          emailRedirectTo: location.href  // Returns here after clicking email link
+        }
       })
 
       if (error) {
         document.getElementById('error1').textContent = error.message
       } else {
-        document.getElementById('email-display').textContent = email
+        emailDisplay.textContent = email
         document.getElementById('signup').classList.add('hidden')
         document.getElementById('verify').classList.remove('hidden')
       }
     }
 
-    // Auto-detect when user clicks verification link and comes back
+    // Auto-login when user clicks verification link
     supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' && session?.user?.email_confirmed_at) {
         document.getElementById('verify').classList.add('hidden')
         document.getElementById('success').classList.remove('hidden')
       }
     })
+
+    // Check if already logged in (e.g. returning user)
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session?.user?.email_confirmed_at) {
+      document.getElementById('signup').classList.add('hidden')
+      document.getElementById('verify').classList.add('hidden')
+      document.getElementById('success').classList.remove('hidden')
+    }
   </script>
 </body>
 </html>
