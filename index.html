@@ -35,6 +35,7 @@
       border:1px solid #ddd; 
       border-radius:12px; 
       font-size:16px; 
+      outline-color: #0f6d54;
     }
     button { 
       width:100%; 
@@ -47,109 +48,125 @@
       font-weight:600; 
       cursor:pointer; 
       margin-top:12px; 
+      transition: opacity 0.2s;
     }
-    button:hover:not(:disabled) { background:#0b5a47; }
+    button:hover { background:#0b5a47; }
     button:disabled { background:#ccc; cursor:not-allowed; }
-    .hidden { display:none; }
-    .error { color:#d32f2f; margin-top:12px; font-size:14px; }
-    .success { color:#0f6d54; font-weight:600; margin:20px 0; }
-    .logo { font-size:36px; margin-bottom:20px; color:#0f6d54; }
+    
+    /* Screen Management */
+    .screen { display: block; }
+    .hidden { display: none; }
+    
+    .error { color:#d32f2f; margin-top:12px; font-size:14px; background: #ffebee; padding: 10px; border-radius: 8px; }
+    .success-msg { color:#0f6d54; font-weight:600; margin:20px 0; }
+    .logo { font-size:36px; margin-bottom:20px; color:#0f6d54; font-weight: 800; }
+    .loading-spinner { border: 3px solid #f3f3f3; border-top: 3px solid #0f6d54; border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; display: inline-block; vertical-align: middle; margin-right: 8px;}
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(3600deg); } }
   </style>
 </head>
 <body>
-  <div class="container">
 
-    <!-- Signup Screen -->
-    <div id="signup">
+  <div class="container">
+    <div id="signup-screen" class="screen">
       <div class="logo">Bakhresa</div>
       <h1>Create Your Account</h1>
-      <p>Secure messaging platform</p>
-      <input type="email" id="email" placeholder="Enter your email" required />
-      <input type="password" id="password" placeholder="Choose password (6+ characters)" minlength="6" required />
-      <button id="signup-btn">Create Account</button>
-      <p id="error1" class="error"></p>
+      <p>Enter your details to start messaging</p>
+      <form id="signup-form">
+        <input type="email" id="email" placeholder="Email address" required />
+        <input type="password" id="password" placeholder="Password (6+ characters)" minlength="6" required />
+        <button type="submit" id="signup-btn">Create Account</button>
+      </form>
+      <div id="error-box" class="error hidden"></div>
     </div>
 
-    <!-- Verification Screen -->
-    <div id="verify" class="hidden">
+    <div id="verify-screen" class="screen hidden">
       <h1>Check Your Email</h1>
-      <p>We sent a verification link to:</p>
-      <strong id="email-display" style="font-size:18px;color:#0f6d54"></strong>
-      <div class="success">Click the link in the email to activate your account</div>
-      <p>After clicking, you'll be logged in automatically.</p>
+      <p>A verification link has been sent to:</p>
+      <strong id="email-display" style="color:#0f6d54"></strong>
+      <div class="success-msg">Please click the link in the email to activate your account.</div>
+      <p style="font-size: 13px; color: #888;">This page will update automatically once verified.</p>
     </div>
 
-    <!-- Success Screen -->
-    <div id="success" class="hidden">
-      <h1>Welcome!</h1>
+    <div id="success-screen" class="screen hidden">
+      <div class="logo">✓</div>
+      <h1>Success!</h1>
       <p>Your account is verified and ready.</p>
-      <button onclick="location.href='chat.html'">Open Chat Dashboard</button>
+      <button onclick="window.location.href='chat.html'">Go to Chat Dashboard</button>
     </div>
-
   </div>
 
-  <!-- Supabase Auth Logic -->
   <script type="module">
     import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/module/index.js";
 
+    // Supabase Configuration
     const supabaseUrl = 'https://osaxbfinrlnabjllcfgv.supabase.co';
     const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9zYXhiZmlucmxuYWJqbGxjZmd2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU1MDY4OTEsImV4cCI6MjA4MTA4Mjg5MX0.qiQzxhYAgd3S_PZUBrT0eYsMfPgSRqP9j7LQq1h4iQE';
-
     const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
+    // DOM Elements
+    const signupForm = document.getElementById('signup-form');
     const signupBtn = document.getElementById('signup-btn');
+    const errorBox = document.getElementById('error-box');
     const emailDisplay = document.getElementById('email-display');
-    const signupScreen = document.getElementById('signup');
-    const verifyScreen = document.getElementById('verify');
-    const successScreen = document.getElementById('success');
-    const error1 = document.getElementById('error1');
 
-    // ✅ SIGNUP
-    signupBtn.onclick = async () => {
+    const screens = {
+      signup: document.getElementById('signup-screen'),
+      verify: document.getElementById('verify-screen'),
+      success: document.getElementById('success-screen')
+    };
+
+    function showScreen(screenKey) {
+      Object.values(screens).forEach(s => s.classList.add('hidden'));
+      screens[screenKey].classList.remove('hidden');
+    }
+
+    // 1. Check if user is already logged in on load
+    async function checkSession() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) showScreen('success');
+    }
+    checkSession();
+
+    // 2. Handle Signup
+    signupForm.onsubmit = async (e) => {
+      e.preventDefault();
       signupBtn.disabled = true;
+      signupBtn.innerHTML = '<span class="loading-spinner"></span> Creating...';
+      errorBox.classList.add('hidden');
 
       const email = document.getElementById('email').value.trim();
       const password = document.getElementById('password').value;
 
-      if (!email || password.length < 6) {
-        error1.textContent = "Enter a valid email and password (6+ chars)";
-        signupBtn.disabled = false;
-        return;
-      }
-
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: "https://godrayxp1.github.io/bakhresa/verify.html"
+          // Redirects back to this exact page after email click
+          emailRedirectTo: window.location.href 
         }
       });
 
       if (error) {
-        error1.textContent = error.message;
+        errorBox.textContent = error.message;
+        errorBox.classList.remove('hidden');
         signupBtn.disabled = false;
+        signupBtn.innerText = 'Create Account';
         return;
       }
 
+      // If user exists but isn't verified, or is new
       emailDisplay.textContent = email;
-      signupScreen.classList.add("hidden");
-      verifyScreen.classList.remove("hidden");
+      showScreen('verify');
     };
 
-    // ✅ AUTO LOGIN AFTER EMAIL VERIFICATION
+    // 3. Listen for Auth State Changes (Triggered when clicking email link)
     supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "SIGNED_IN") {
-        verifyScreen.classList.add("hidden");
-        successScreen.classList.remove("hidden");
+      console.log("Auth Event:", event);
+      if (event === "SIGNED_IN" && session) {
+        showScreen('success');
       }
     });
 
-    // ✅ IF ALREADY LOGGED IN
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session) {
-      signupScreen.classList.add("hidden");
-      successScreen.classList.remove("hidden");
-    }
   </script>
 </body>
 </html>
