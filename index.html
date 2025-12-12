@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -75,8 +76,7 @@
       <p>We sent a verification link to:</p>
       <strong id="email-display" style="font-size:18px;color:#0f6d54"></strong>
       <div class="success">Click the link in the email to activate your account</div>
-      <p>After clicking, come back here — you'll be logged in automatically.</p>
-      <p id="error2" class="error"></p>
+      <p>After clicking, you'll be logged in automatically.</p>
     </div>
 
     <!-- Success Screen -->
@@ -88,85 +88,67 @@
 
   </div>
 
-  <!-- Diagnostic-Enhanced Script -->
+  <!-- Supabase Auth Logic -->
   <script type="module">
-    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js'
+    import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/module/index.js";
 
-    const supabaseUrl = 'https://osaxbfinrlnabjllcfgv.supabase.co'
-    const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9zYXhiZmlucmxuYWJqbGxjZmd2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU1MDY4OTEsImV4cCI6MjA4MTA4Mjg5MX0.qiQzxhYAgd3S_PZUBrT0eYsMfPgSRqP9j7LQq1h4iQE'
+    const supabaseUrl = 'https://osaxbfinrlnabjllcfgv.supabase.co';
+    const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9zYXhiZmlucmxuYWJqbGxjZmd2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU1MDY4OTEsImV4cCI6MjA4MTA4Mjg5MX0.qiQzxhYAgd3S_PZUBrT0eYsMfPgSRqP9j7LQq1h4iQE';
 
-    const supabase = createClient(supabaseUrl, supabaseAnonKey)
-    console.log('Supabase client initialized successfully')
+    const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-    const signupBtn = document.getElementById('signup-btn')
-    const emailDisplay = document.getElementById('email-display')
-    const error1 = document.getElementById('error1')
-    const signupScreen = document.getElementById('signup')
-    const verifyScreen = document.getElementById('verify')
-    const successScreen = document.getElementById('success')
+    const signupBtn = document.getElementById('signup-btn');
+    const emailDisplay = document.getElementById('email-display');
+    const signupScreen = document.getElementById('signup');
+    const verifyScreen = document.getElementById('verify');
+    const successScreen = document.getElementById('success');
+    const error1 = document.getElementById('error1');
 
-    if (signupBtn) {
-      signupBtn.onclick = async (e) => {
-        e.preventDefault()
-        signupBtn.disabled = true
-        console.log('Button clicked - initiating signup')
+    // ✅ SIGNUP
+    signupBtn.onclick = async () => {
+      signupBtn.disabled = true;
 
-        const email = document.getElementById('email').value.trim()
-        const password = document.getElementById('password').value
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
 
-        if (!email || !password || password.length < 6) {
-          error1.textContent = 'Please enter a valid email and password (6+ characters)'
-          signupBtn.disabled = false
-          return
-        }
-
-        try {
-          console.log('Calling supabase.auth.signUp...')
-          const { data, error } = await supabase.auth.signUp({
-            email,
-            password,
-            options: { 
-              emailRedirectTo: 'https://godrayxp1.github.io/bakhresa' 
-            }
-          })
-
-          if (error) {
-            console.error('Signup error details:', error)
-            error1.textContent = `Signup failed: ${error.message}`
-          } else {
-            console.log('Signup successful - email sent:', data)
-            emailDisplay.textContent = email
-            signupScreen.classList.add('hidden')
-            verifyScreen.classList.remove('hidden')
-            error1.textContent = ''
-          }
-        } catch (err) {
-          console.error('Unexpected error during signup:', err)
-          error1.textContent = 'An unexpected error occurred. Please try again.'
-        } finally {
-          signupBtn.disabled = false
-        }
+      if (!email || password.length < 6) {
+        error1.textContent = "Enter a valid email and password (6+ chars)";
+        signupBtn.disabled = false;
+        return;
       }
-    } else {
-      console.error('Signup button not found - check ID="signup-btn"')
-    }
 
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: "https://godrayxp1.github.io/bakhresa/verify.html"
+        }
+      });
+
+      if (error) {
+        error1.textContent = error.message;
+        signupBtn.disabled = false;
+        return;
+      }
+
+      emailDisplay.textContent = email;
+      signupScreen.classList.add("hidden");
+      verifyScreen.classList.remove("hidden");
+    };
+
+    // ✅ AUTO LOGIN AFTER EMAIL VERIFICATION
     supabase.auth.onAuthStateChange((event, session) => {
-      console.log('Auth state changed:', event, session?.user?.email)
-      if (event === 'SIGNED_IN' && session?.user?.email_confirmed_at) {
-        console.log('User verified - showing success')
-        verifyScreen.classList.add('hidden')
-        successScreen.classList.remove('hidden')
+      if (event === "SIGNED_IN") {
+        verifyScreen.classList.add("hidden");
+        successScreen.classList.remove("hidden");
       }
-    })
+    });
 
-    // Initial session check
-    const { data: { session } } = await supabase.auth.getSession()
-    console.log('Initial session check:', session)
-    if (session?.user?.email_confirmed_at) {
-      signupScreen.classList.add('hidden')
-      verifyScreen.classList.add('hidden')
-      successScreen.classList.remove('hidden')
+    // ✅ IF ALREADY LOGGED IN
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+      signupScreen.classList.add("hidden");
+      successScreen.classList.remove("hidden");
     }
   </script>
 </body>
