@@ -8,7 +8,7 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
     import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
-    import { getFirestore, doc, setDoc, onSnapshot, collection, query, where, orderBy, addDoc, serverTimestamp, updateDoc } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+    import { getFirestore, doc, setDoc, getDoc, onSnapshot, collection, query, where, orderBy, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
     const app = initializeApp({
       apiKey: "AIzaSyB1Dnku0qGEWxLS9R8Mz5neKSReAyuypBs",
@@ -32,20 +32,31 @@
     const messagesArea = document.getElementById("messages");
     const messageInput = document.getElementById("messageInput");
 
-    // Login / Register
+    // ===== LOGIN / REGISTER =====
     window.login = async () => {
       const email = document.getElementById("email").value.trim();
       const pass = document.getElementById("pass").value;
       const username = document.getElementById("username").value.trim().toLowerCase().replace(/[^a-z0-9_]/g, "");
-      
-      if (!email || !pass || !username) return alert("Fill all fields");
+
+      if (!email || !pass || username.length < 3) {
+        alert("Email, password, and username (min 3 chars) required");
+        return;
+      }
 
       try {
+        // Try login first
         await signInWithEmailAndPassword(auth, email, pass);
-      } catch {
-        await createUserWithEmailAndPassword(auth, email, pass);
+      } catch (err) {
+        // If failed → create new account
+        if (err.code === "auth/user-not-found" || err.code === "auth/wrong-password") {
+          await createUserWithEmailAndPassword(auth, email, pass);
+        } else {
+          alert(err.message);
+          return;
+        }
       }
-      
+
+      // Save username & online status
       await setDoc(doc(db, "users", auth.currentUser.uid), {
         username,
         email,
@@ -54,34 +65,51 @@
       }, { merge: true });
     };
 
-    onAuthStateChanged(auth, async user => {
-      if (!user) { loginBox.style.display = "flex"; appUI.style.display = "none"; return; }
-      
-      me = (await getDoc(doc(db, "users", user.uid))).data();
+    // ===== AUTH STATE CHANGE =====
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        loginBox.style.display = "flex";
+        appUI.style.display = "none";
+        return;
+      }
+
+      const userDoc = await getDoc(doc(db, "users", user.uid));
+      if (!userDoc.exists()) {
+        // Rare case: user signed in but profile missing → log out
+        auth.signOut();
+        return;
+      }
+
+      me = userDoc.data();
       loginBox.style.display = "none";
       appUI.style.display = "flex";
       document.getElementById("myName").textContent = "@" + me.username;
 
-      // Keep online status
+      // Keep online status alive
       const userRef = doc(db, "users", user.uid);
-      setDoc(userRef, { online: true, lastSeen: serverTimestamp() }, { merge: true });
-      window.onunload = () => setDoc(userRef, { online: false, lastSeen: serverTimestamp() }, { merge: true });
+      const updateOnline = () => setDoc(userRef, { online: true, lastSeen: serverTimestamp() }, { merge: true });
+      updateOnline();
+      window.addEventListener("beforeunload", () => setDoc(userRef, { online: false, lastSeen: serverTimestamp() }, { merge: true }));
+      setInterval(updateOnline, 30000);
 
       loadUsers();
     });
 
+    // ===== LOAD USERS LIST =====
     function loadUsers() {
-      onSnapshot(query(collection(db, "users"), where("username", "!=", null)), snap => {
+      onSnapshot(collection(db, "users"), snap => {
         userList.innerHTML = "";
         snap.forEach(d => {
           const u = d.data();
+          if (!u.username || u.username === me.username) return;
+
           const el = document.createElement("div");
           el.className = "user-item";
           el.innerHTML = `
             <div class="avatar">${u.username[0].toUpperCase()}</div>
             <div class="user-info">
               <div class="name">@${u.username}</div>
-              <div class="status">${u.online ? "Online" : "Offline"}</div>
+              <div class="status">${u.online ? "Online" : "Last seen recently"}</div>
             </div>
             ${u.online ? '<i class="online-dot"></i>' : ''}
           `;
@@ -91,15 +119,17 @@
       });
     }
 
+    // ===== OPEN CHAT =====
     function openChat(username) {
       activeChat = username;
       chatName.textContent = "@" + username;
-      messagesArea.innerHTML = "";
+      messagesArea.innerHTML = "<div style='text-align:center;color:#666;padding:30px'>Start chatting with @" + username + "</div>";
       loadMessages();
     }
 
     function chatId(a, b) { return a < b ? `${a}_${b}` : `${b}_${a}`; }
 
+    // ===== LOAD MESSAGES =====
     function loadMessages() {
       if (!activeChat) return;
       const id = chatId(me.username, activeChat);
@@ -111,7 +141,7 @@
           bubble.className = `message ${m.from === me.username ? "sent" : "received"}`;
           bubble.innerHTML = `
             <div class="text">${m.text}</div>
-            <div class="time">${new Date(m.time?.toDate()).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+            <div class="time">${m.time ? new Date(m.time.toDate()).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ""}</div>
           `;
           messagesArea.appendChild(bubble);
         });
@@ -119,9 +149,11 @@
       });
     }
 
+    // ===== SEND MESSAGE =====
     window.sendMessage = async () => {
       const text = messageInput.value.trim();
       if (!text || !activeChat) return;
+
       const id = chatId(me.username, activeChat);
       await addDoc(collection(db, "messages"), {
         chatId: id,
@@ -135,19 +167,18 @@
 
     messageInput.addEventListener("keypress", e => e.key === "Enter" && sendMessage());
   </script>
+
   <style>
     :root { --primary: #00ff9d; --bg: #000; --card: #111; --text: #fff; }
-    body { margin:0; font-family: system-ui; background: var(--bg); color: var(--text); height:100vh; overflow:hidden; }
-    #loginBox, #app { display:flex; height:100vh; }
-    #loginBox { flex-direction:column; justify-content:center; align-items:center; background:linear-gradient(135deg,#000,#003322); }
+    body { margin:0; font-family:system-ui; background:var(--bg); color:var(--text); height:100vh; overflow:hidden; }
+    #loginBox { display:flex; flex-direction:column; justify-content:center; align-items:center; background:linear-gradient(135deg,#000,#003322); height:100vh; }
     #loginBox input, #loginBox button { width:320px; padding:16px; margin:10px; border:none; border-radius:50px; font-size:1.1em; }
     #loginBox button { background:var(--primary); color:#000; font-weight:bold; cursor:pointer; }
-    #app { display:none; }
+    #app { display:none; flex-direction:row; height:100vh; }
     #sidebar { width:340px; background:#080808; border-right:1px solid #222; overflow-y:auto; }
     #header { padding:20px; text-align:center; border-bottom:1px solid #222; }
     #header h1 { margin:0; color:var(--primary); }
-    #userList { padding:10px; }
-    .user-item { display:flex; align-items:center; padding:14px; border-radius:12px; margin:6px 10px; cursor:pointer; transition:0.2s; position:relative; }
+    .user-item { display:flex; align-items:center; padding:14px; border-radius:12px; margin:6px 10px; cursor:pointer; position:relative; transition:0.2s; }
     .user-item:hover { background:#1a1a1a; }
     .avatar { width:50px; height:50px; border-radius:50%; background:var(--primary); color:#000; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:1.3em; margin-right:14px; }
     .user-info .name { font-weight:600; }
@@ -165,41 +196,4 @@
     .received .text { background:#222; border-bottom-left-radius:4px; }
     .message .time { font-size:0.7em; opacity:0.6; padding:0 18px; }
 
-    #inputArea { padding:15px; background:#000; border-top:1px solid #222; display:flex; align-items:center; }
-    #messageInput { flex:1; padding:16px 20px; border:none; border-radius:50px; background:#222; color:white; font-size:1em; }
-    #sendBtn { margin-left:12px; width:50px; height:50px; border:none; border-radius:50%; background:var(--primary); color:#000; cursor:pointer; font-size:1.3em; }
-  </style>
-</head>
-<body>
-
-  <!-- Login -->
-  <div id="loginBox">
-    <h1 style="color:#00ff9d;font-size:3em;margin-bottom:30px">Godray</h1>
-    <input id="email" placeholder="Email" type="email">
-    <input id="pass" placeholder="Password" type="password">
-    <input id="username" placeholder="Choose username (@godray)">
-    <button onclick="login()">Enter Messenger</button>
-  </div>
-
-  <!-- Main App -->
-  <div id="app">
-    <div id="sidebar">
-      <div id="header">
-        <h1>Godray</h1>
-        <div style="margin-top:10px">Logged in as <span id="myName" style="color:#00ff9d"></span></div>
-      </div>
-      <div id="userList"></div>
-    </div>
-
-    <div id="chatArea">
-      <div id="chatHeader">Select a user to start chatting</div>
-      <div id="messages"></div>
-      <div id="inputArea">
-        <input id="messageInput" placeholder="Type a message..." autocomplete="off">
-        <button id="sendBtn" onclick="sendMessage()"><i class="fas fa-paper-plane"></i></button>
-      </div>
-    </div>
-  </div>
-
-</body>
-</html>
+    #inputArea { padding:15px; background:#000; border-top:1px solid #222;
