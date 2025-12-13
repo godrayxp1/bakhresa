@@ -91,142 +91,100 @@
   </div>
 
   <script type="module">
-    // CRITICAL FIX: Using the correct ES Module (ESM) link for Supabase
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm'
 
-    // Your Supabase Keys
     const supabaseUrl = 'https://osaxbfinrlnabjllcfgv.supabase.co'
     const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9zYXhiZmlucmxuYWJqbGxjZmd2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU1MDY4OTEsImV4cCI6MjA4MTA4Mjg5MX0.qiQzxhYAgd3S_PZUBrT0eYsMfPgSRqP9j7LQq1h4iQE'
 
     const supabase = createClient(supabaseUrl, supabaseAnonKey)
-    console.log('Supabase client initialized successfully with ESM link.')
+    console.log('Supabase client initialized.')
 
     // DOM Elements
     const signupBtn = document.getElementById('signup-btn')
     const emailInput = document.getElementById('email')
     const passwordInput = document.getElementById('password')
     const emailDisplay = document.getElementById('email-display')
-    const error1 = document.getElementById('error1') // This is where errors are shown
+    const error1 = document.getElementById('error1')
     const signupScreen = document.getElementById('signup')
     const verifyScreen = document.getElementById('verify')
     const successScreen = document.getElementById('success')
 
-    /**
-     * Helper function to show the correct screen based on auth state.
-     * @param {object | null} session - The current Supabase session.
-     */
     function updateScreen(session) {
-      // Hide all screens initially
       signupScreen.classList.add('hidden')
       verifyScreen.classList.add('hidden')
       successScreen.classList.add('hidden')
-      
-      // Determine which screen to show
-      if (session && session.user.email_confirmed_at) {
-        // User is signed in and verified
+
+      if (session?.user?.email_confirmed_at) {
         successScreen.classList.remove('hidden')
+      } else if (session?.user) {
+        // User has a session but email not yet confirmed (rare in this flow, but safe)
+        verifyScreen.classList.remove('hidden')
+        emailDisplay.textContent = session.user.email || ''
       } else {
-        // No session or not verified yet, show the signup screen by default
         signupScreen.classList.remove('hidden')
       }
     }
 
-    /**
-     * Enhances the display of error messages based on common Supabase issues.
-     * @param {Object} error - The error object returned from Supabase.
-     */
-    function displaySupabaseError(error) {
-      if (!error || !error.message) {
-        error1.textContent = 'An unknown network error occurred. Please check your connection.';
-        return;
-      }
-
-      let message = error.message;
-
-      // Handle common user-facing errors
-      if (message.includes('rate limit')) {
-        message = 'Too many requests. Please wait a moment and try again.';
-      } else if (message.includes('User already exists')) {
-        message = 'This email address is already registered. Try logging in or resetting your password.';
-      } else if (message.includes('Invalid email format')) {
-        message = 'The email address provided is not valid.';
-      } else if (message.includes('Email link has expired')) {
-        message = 'The verification link has expired. Please sign up again.';
-      }
-      
-      error1.textContent = `Signup failed: ${message}`;
+    function displayError(message) {
+      error1.textContent = message || 'An unknown error occurred.'
     }
 
+    signupBtn.onclick = async (e) => {
+      e.preventDefault()
+      signupBtn.disabled = true
+      error1.textContent = ''
 
-    if (signupBtn) {
-      signupBtn.onclick = async (e) => {
-        e.preventDefault()
-        signupBtn.disabled = true
-        error1.textContent = '' // Clear previous errors
+      const email = emailInput.value.trim()
+      const password = passwordInput.value
 
-        const email = emailInput.value.trim()
-        const password = passwordInput.value
+      if (!email || !password || password.length < 6) {
+        displayError('Please enter a valid email and password (6+ characters).')
+        signupBtn.disabled = false
+        return
+      }
 
-        if (!email || !password || password.length < 6) {
-          error1.textContent = 'Please enter a valid email and password (6+ characters)'
-          signupBtn.disabled = false
-          return
-        }
-
-        try {
-          const { data, error } = await supabase.auth.signUp({
-            email,
-            password,
-            options: { 
-              emailRedirectTo: 'https://godrayxp1.github.io/bakhresa' 
-            }
-          })
-
-          if (error) {
-            console.error('Signup error details:', error)
-            displaySupabaseError(error); // Use the enhanced error display
-          } else if (data.user && !data.session) {
-            // Success: Email sent, waiting for user confirmation
-            console.log('Signup successful - email sent.')
-            emailDisplay.textContent = email
-            signupScreen.classList.add('hidden')
-            verifyScreen.classList.remove('hidden')
-          } else if (data.session) {
-            // Success: User auto-signed in (e.g., if already verified)
-            updateScreen(data.session)
+      try {
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            emailRedirectTo: 'https://godrayxp1.github.io/bakhresa'
           }
+        })
 
-        } catch (err) {
-          console.error('Unexpected error during signup:', err)
-          error1.textContent = 'An unexpected error occurred. Please check your network connection.'
-        } finally {
-          signupBtn.disabled = false
+        if (error) {
+          console.error('Signup error:', error)
+          displayError(`Signup failed: ${error.message}`)
+        } else if (data.user && !data.session) {
+          // Confirmation email sent
+          emailDisplay.textContent = email
+          updateScreen(null) // Force verify screen
+          verifyScreen.classList.remove('hidden')
+          signupScreen.classList.add('hidden')
+        } else if (data.session) {
+          updateScreen(data.session)
         }
+      } catch (err) {
+        console.error('Unexpected error:', err)
+        displayError('An unexpected error occurred. Check your connection.')
+      } finally {
+        signupBtn.disabled = false
       }
     }
 
-    // Listener for Auth State Changes (Handles verification link click)
+    // Listen to all auth changes (critical for confirmation link handling)
     supabase.auth.onAuthStateChange((event, session) => {
-      console.log('Auth state changed:', event)
-      if (event === 'SIGNED_IN') {
-        updateScreen(session)
-      }
+      console.log('Auth event:', event, 'Confirmed:', !!session?.user?.email_confirmed_at)
+      updateScreen(session)
     })
 
-    // Initial check for existing session on page load
-    async function checkInitialSession() {
-      try {
-          const { data: { session } } = await supabase.auth.getSession()
-          console.log('Initial session check:', session)
-          updateScreen(session)
-      } catch (error) {
-          console.error("Error checking session:", error);
-          signupScreen.classList.remove('hidden')
-      }
+    // Check for existing session on page load
+    async function init() {
+      const { data: { session } } = await supabase.auth.getSession()
+      updateScreen(session)
     }
-    
-    checkInitialSession();
-        </script>
-  
+
+    init()
+  </script>
 </body>
 </html>
