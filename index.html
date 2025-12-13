@@ -91,7 +91,7 @@
   </div>
 
   <script type="module">
-    // *** CRITICAL FIX: Using the correct ES Module (ESM) link for Supabase ***
+    // CRITICAL FIX: Using the correct ES Module (ESM) link for Supabase
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm'
 
     // Your Supabase Keys
@@ -106,7 +106,7 @@
     const emailInput = document.getElementById('email')
     const passwordInput = document.getElementById('password')
     const emailDisplay = document.getElementById('email-display')
-    const error1 = document.getElementById('error1')
+    const error1 = document.getElementById('error1') // This is where errors are shown
     const signupScreen = document.getElementById('signup')
     const verifyScreen = document.getElementById('verify')
     const successScreen = document.getElementById('success')
@@ -131,6 +131,32 @@
       }
     }
 
+    /**
+     * Enhances the display of error messages based on common Supabase issues.
+     * @param {Object} error - The error object returned from Supabase.
+     */
+    function displaySupabaseError(error) {
+      if (!error || !error.message) {
+        error1.textContent = 'An unknown network error occurred. Please check your connection.';
+        return;
+      }
+
+      let message = error.message;
+
+      // Handle common user-facing errors
+      if (message.includes('rate limit')) {
+        message = 'Too many requests. Please wait a moment and try again.';
+      } else if (message.includes('User already exists')) {
+        message = 'This email address is already registered. Try logging in or resetting your password.';
+      } else if (message.includes('Invalid email format')) {
+        message = 'The email address provided is not valid.';
+      } else if (message.includes('Email link has expired')) {
+        message = 'The verification link has expired. Please sign up again.';
+      }
+      
+      error1.textContent = `Signup failed: ${message}`;
+    }
+
 
     if (signupBtn) {
       signupBtn.onclick = async (e) => {
@@ -152,14 +178,13 @@
             email,
             password,
             options: { 
-              // Ensure this matches the Redirect URL in your Supabase Dashboard
               emailRedirectTo: 'https://godrayxp1.github.io/bakhresa' 
             }
           })
 
           if (error) {
             console.error('Signup error details:', error)
-            error1.textContent = `Signup failed: ${error.message}`
+            displaySupabaseError(error); // Use the enhanced error display
           } else if (data.user && !data.session) {
             // Success: Email sent, waiting for user confirmation
             console.log('Signup successful - email sent.')
@@ -173,7 +198,7 @@
 
         } catch (err) {
           console.error('Unexpected error during signup:', err)
-          error1.textContent = 'An unexpected error occurred. Please try again.'
+          error1.textContent = 'An unexpected error occurred. Please check your network connection.'
         } finally {
           signupBtn.disabled = false
         }
@@ -184,7 +209,6 @@
     supabase.auth.onAuthStateChange((event, session) => {
       console.log('Auth state changed:', event)
       if (event === 'SIGNED_IN') {
-        // The user has successfully logged in (e.g., after clicking the verification link)
         updateScreen(session)
       }
     })
@@ -197,12 +221,12 @@
           updateScreen(session)
       } catch (error) {
           console.error("Error checking session:", error);
-          // Default to signup if there's an error
           signupScreen.classList.remove('hidden')
       }
     }
     
     checkInitialSession();
-  </script>
+        </script>
+  
 </body>
 </html>
