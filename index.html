@@ -91,7 +91,7 @@
   </div>
 
   <script type="module">
-    // *** CRITICAL FIX: Changed UMD link to ESM link for correct module import ***
+    // *** CRITICAL FIX: Using the correct ES Module (ESM) link for Supabase ***
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm'
 
     // Your Supabase Keys
@@ -121,15 +121,12 @@
       verifyScreen.classList.add('hidden')
       successScreen.classList.add('hidden')
       
+      // Determine which screen to show
       if (session && session.user.email_confirmed_at) {
         // User is signed in and verified
         successScreen.classList.remove('hidden')
-      } else if (session) {
-        // User is signed in but verification status is unknown or not needed (e.g. magic link)
-        // For standard email/password flow, we default to the signup screen if not verified
-        signupScreen.classList.remove('hidden')
       } else {
-        // No session found, show the signup screen
+        // No session or not verified yet, show the signup screen by default
         signupScreen.classList.remove('hidden')
       }
     }
@@ -155,7 +152,7 @@
             email,
             password,
             options: { 
-              // Make sure this matches the Redirect URL in your Supabase Dashboard
+              // Ensure this matches the Redirect URL in your Supabase Dashboard
               emailRedirectTo: 'https://godrayxp1.github.io/bakhresa' 
             }
           })
@@ -170,7 +167,7 @@
             signupScreen.classList.add('hidden')
             verifyScreen.classList.remove('hidden')
           } else if (data.session) {
-            // Success: User auto-signed in (e.g., if auto-confirm is enabled, or during certain test flows)
+            // Success: User auto-signed in (e.g., if already verified)
             updateScreen(data.session)
           }
 
@@ -185,12 +182,11 @@
 
     // Listener for Auth State Changes (Handles verification link click)
     supabase.auth.onAuthStateChange((event, session) => {
-      console.log('Auth state changed:', event, session?.user?.email)
+      console.log('Auth state changed:', event)
       if (event === 'SIGNED_IN') {
         // The user has successfully logged in (e.g., after clicking the verification link)
         updateScreen(session)
       }
-      // Note: If event is SIGNED_OUT, the user would be redirected to the signup screen.
     })
 
     // Initial check for existing session on page load
@@ -210,4 +206,3 @@
   </script>
 </body>
 </html>
-
