@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Bakhresa — Add Post</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: system-ui, sans-serif;
+      background: #020617;
+      color: #e5e7eb;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .box {
+      width: 100%;
+      max-width: 500px;
+      padding: 2rem;
+      border: 1px solid #334155;
+      border-radius: 16px;
+      background: #020617;
+    }
+
+    h1 {
+      margin-bottom: 1rem;
+      text-align: center;
+    }
+
+    textarea {
+      width: 100%;
+      height: 120px;
+      padding: 1rem;
+      border-radius: 12px;
+      border: 1px solid #334155;
+      background: #020617;
+      color: #e5e7eb;
+      resize: none;
+    }
+
+    button {
+      margin-top: 1rem;
+      width: 100%;
+      padding: 0.8rem;
+      border-radius: 12px;
+      border: none;
+      background: #38bdf8;
+      color: #020617;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .msg {
+      margin-top: 1rem;
+      text-align: center;
+      font-size: 0.9rem;
+      color: #22c55e;
+      display: none;
+    }
+
+    a {
+      display: block;
+      text-align: center;
+      margin-top: 1.5rem;
+      color: #38bdf8;
+      text-decoration: none;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="box">
+    <h1>Create Post</h1>
+
+    <textarea id="content" placeholder="Say something meaningful…"></textarea>
+
+    <button id="submitBtn">Upload Post</button>
+
+    <div class="msg" id="successMsg">
+      Post uploaded successfully
+    </div>
+
+    <a href="./index.html">← Back Home</a>
+  </div>
+
+  <script>
+    const supabaseUrl = "https://osaxbfinrlnabjllcfgv.supabase.co";
+    const supabaseAnonKey =
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9zYXhiZmlucmxuYWJqbGxjZmd2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU1MDY4OTEsImV4cCI6MjA4MTA4Mjg5MX0.qiQzxhYAgd3S_PZUBrT0eYsMfPgSRqP9j7LQq1h4iQE";
+
+    const supabase = window.supabase.createClient(
+      supabaseUrl,
+      supabaseAnonKey
+    );
+
+    async function ensureAuth() {
+      const { data } = await supabase.auth.getUser();
+      if (!data.user) {
+        window.location.href = "./index.html";
+      }
+      return data.user;
+    }
+
+    document.getElementById("submitBtn").addEventListener("click", async () => {
+      const content = document.getElementById("content").value.trim();
+      if (!content) return;
+
+      const user = await ensureAuth();
+
+      const { error } = await supabase
+        .from("posts")
+        .insert({
+          user_id: user.id,
+          content
+        });
+
+      if (!error) {
+        content.value = "";
+        const msg = document.getElementById("successMsg");
+        msg.style.display = "block";
+        setTimeout(() => msg.style.display = "none", 2000);
+      }
+    });
+
+    ensureAuth();
+  </script>
+
+</body>
+</html>
