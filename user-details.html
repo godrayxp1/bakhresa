@@ -3,130 +3,222 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Bakhresa — Users</title>
+  <title>Bakhresa • Profile</title>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <style>
+    :root {
+      --bg: #020617;
+      --border: #1e293b;
+      --text: #e5e7eb;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+    }
+
+    * {
+      box-sizing: border-box;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
     body {
       margin: 0;
-      font-family: system-ui, sans-serif;
-      background: #020617;
-      color: #e5e7eb;
-      padding: 2rem;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #020617, #0f172a);
+      color: var(--text);
     }
 
-    h1 {
-      text-align: center;
-      margin-bottom: 2rem;
+    header {
+      position: sticky;
+      top: 0;
+      background: rgba(2,6,23,.85);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border);
+      padding: 1rem 1.5rem;
+      font-weight: 700;
     }
 
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-      gap: 1.2rem;
-      max-width: 1100px;
+    main {
+      max-width: 640px;
       margin: auto;
+      padding: 1.5rem;
     }
 
-    .card {
-      background: #020617;
-      border: 1px solid #334155;
-      border-radius: 16px;
-      padding: 1.2rem;
+    .profile {
       display: flex;
       gap: 1rem;
       align-items: center;
+      margin-bottom: 1.5rem;
     }
 
     .avatar {
-      width: 56px;
-      height: 56px;
+      width: 80px;
+      height: 80px;
       border-radius: 50%;
       object-fit: cover;
-      background: #0f172a;
-    }
-
-    .info {
-      flex: 1;
+      background: #334155;
     }
 
     .username {
+      font-size: 1.2rem;
       font-weight: 700;
-      font-size: 1rem;
     }
 
-    .name {
+    .bio {
+      color: var(--muted);
       font-size: 0.9rem;
-      color: #94a3b8;
+      margin-top: 0.25rem;
     }
 
-    .status {
-      font-size: 0.85rem;
-      color: #22c55e;
-      margin-top: 0.2rem;
+    .divider {
+      height: 1px;
+      background: var(--border);
+      margin: 1.5rem 0;
     }
 
-    a {
-      display: block;
+    .post {
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1rem;
+      margin-bottom: 1.2rem;
+      background: rgba(2,6,23,.6);
+    }
+
+    .time {
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-bottom: 0.4rem;
+    }
+
+    .content {
+      font-size: 0.95rem;
+      line-height: 1.5;
+      white-space: pre-wrap;
+    }
+
+    .empty {
       text-align: center;
-      margin-top: 2rem;
-      color: #38bdf8;
+      color: var(--muted);
+      margin-top: 3rem;
+    }
+
+    .back {
+      display: inline-block;
+      margin-bottom: 1rem;
+      color: var(--muted);
       text-decoration: none;
+      font-size: 0.85rem;
+    }
+
+    .back:hover {
+      color: var(--accent);
     }
   </style>
 </head>
 
 <body>
 
-  <h1>Users on Bakhresa</h1>
+<header>Bakhresa</header>
 
-  <div class="grid" id="usersGrid"></div>
+<main>
+  <a href="feed.html" class="back">← Back to feed</a>
 
-  <a href="./index.html">← Back to Home</a>
+  <div id="profile"></div>
 
-  <script>
-    const supabaseUrl = "https://osaxbfinrlnabjllcfgv.supabase.co";
-    const supabaseAnonKey =
-      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9zYXhiZmlucmxuYWJqbGxjZmd2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU1MDY4OTEsImV4cCI6MjA4MTA4Mjg5MX0.qiQzxhYAgd3S_PZUBrT0eYsMfPgSRqP9j7LQq1h4iQE";
+  <div class="divider"></div>
 
-    const supabase = window.supabase.createClient(
-      supabaseUrl,
-      supabaseAnonKey
-    );
+  <div id="posts">
+    <div class="empty">Loading posts…</div>
+  </div>
+</main>
 
-    async function loadUsers() {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("username, full_name, avatar_url, status")
-        .order("created_at", { ascending: false });
+<script>
+  const supabase = window.supabase.createClient(
+    "https://osaxbfinrlnabjllcfgv.supabase.co",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9zYXhiZmlucmxuYWJqbGxjZmd2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU1MDY4OTEsImV4cCI6MjA4MTA4Mjg5MX0.qiQzxhYAgd3S_PZUBrT0eYsMfPgSRqP9j7LQq1h4iQE"
+  );
 
-      if (error) {
-        console.error(error);
-        return;
-      }
+  const params = new URLSearchParams(window.location.search);
+  const username = params.get("username");
 
-      const grid = document.getElementById("usersGrid");
+  if (!username) {
+    window.location.href = "feed.html";
+  }
 
-      data.forEach(user => {
-        const card = document.createElement("div");
-        card.className = "card";
+  /* ==========================
+     AUTH GUARD
+  ========================== */
+  async function requireAuth() {
+    const { data } = await supabase.auth.getSession();
+    if (!data.session) {
+      window.location.href = "index.html";
+    }
+  }
 
-        card.innerHTML = `
-          <img class="avatar" src="${user.avatar_url || 'https://avatars.githubusercontent.com/u/0'}" />
-          <div class="info">
-            <div class="username">@${user.username}</div>
-            <div class="name">${user.full_name || ""}</div>
-            <div class="status">${user.status || ""}</div>
-          </div>
-        `;
+  /* ==========================
+     LOAD PROFILE
+  ========================== */
+  async function loadProfile() {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("username", username)
+      .single();
 
-        grid.appendChild(card);
-      });
+    if (error || !data) {
+      document.getElementById("profile").innerHTML =
+        `<div class="empty">User not found</div>`;
+      return;
     }
 
-    loadUsers();
-  </script>
+    document.getElementById("profile").innerHTML = `
+      <div class="profile">
+        <img class="avatar"
+          src="${data.avatar_url || 'https://api.dicebear.com/7.x/identicon/svg?seed=' + username}">
+        <div>
+          <div class="username">@${data.username}</div>
+          <div class="bio">${data.bio || "No bio provided."}</div>
+        </div>
+      </div>
+    `;
+
+    loadPosts(data.id);
+  }
+
+  /* ==========================
+     LOAD USER POSTS
+  ========================== */
+  async function loadPosts(userId) {
+    const { data, error } = await supabase
+      .from("posts")
+      .select("content, created_at")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+
+    const posts = document.getElementById("posts");
+    posts.innerHTML = "";
+
+    if (error || !data || data.length === 0) {
+      posts.innerHTML = `<div class="empty">No posts yet</div>`;
+      return;
+    }
+
+    data.forEach(post => {
+      const div = document.createElement("div");
+      div.className = "post";
+
+      div.innerHTML = `
+        <div class="time">${new Date(post.created_at).toLocaleString()}</div>
+        <div class="content">${post.content}</div>
+      `;
+
+      posts.appendChild(div);
+    });
+  }
+
+  requireAuth();
+  loadProfile();
+</script>
 
 </body>
 </html>
