@@ -2,19 +2,20 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Bakhresa • Feed</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bakhresa — Feed</title>
 
+  <!-- Supabase CDN -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <style>
     :root {
       --bg: #020617;
-      --card: #020617;
-      --border: #1e293b;
+      --card: #0f172a;
       --text: #e5e7eb;
       --muted: #94a3b8;
       --accent: #38bdf8;
+      --border: #1e293b;
     }
 
     * {
@@ -24,117 +25,144 @@
 
     body {
       margin: 0;
+      min-height: 100vh;
       background: linear-gradient(135deg, #020617, #0f172a);
       color: var(--text);
-      min-height: 100vh;
     }
 
     header {
-      position: sticky;
-      top: 0;
-      z-index: 10;
-      background: rgba(2,6,23,.85);
-      backdrop-filter: blur(10px);
+      padding: 1.5rem 2rem;
+      font-weight: 700;
+      font-size: 1.2rem;
       border-bottom: 1px solid var(--border);
-      padding: 1rem 1.5rem;
       display: flex;
       justify-content: space-between;
       align-items: center;
     }
 
-    header span {
-      font-weight: 700;
-      font-size: 1.05rem;
+    .signout {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+
+    .signout:hover {
+      background: var(--border);
     }
 
     main {
-      max-width: 640px;
-      margin: auto;
-      padding: 1.2rem;
+      max-width: 680px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+    }
+
+    .composer {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    textarea {
+      width: 100%;
+      background: transparent;
+      border: none;
+      color: var(--text);
+      font-size: 1.1rem;
+      resize: none;
+      outline: none;
+      min-height: 100px;
+    }
+
+    .composer-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 1rem;
+    }
+
+    .char-count {
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .post-btn {
+      background: var(--accent);
+      color: #020617;
+      border: none;
+      padding: 0.6rem 1.2rem;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      opacity: 0.6;
+    }
+
+    .post-btn.active {
+      opacity: 1;
+    }
+
+    .posts {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
     }
 
     .post {
+      background: var(--card);
       border: 1px solid var(--border);
       border-radius: 16px;
-      padding: 1rem;
-      margin-bottom: 1.2rem;
-      background: rgba(2,6,23,.6);
+      padding: 1.5rem;
     }
 
     .post-header {
       display: flex;
-      gap: 0.75rem;
       align-items: center;
+      gap: 0.8rem;
+      margin-bottom: 0.8rem;
     }
 
     .avatar {
-      width: 44px;
-      height: 44px;
-      border-radius: 50%;
-      background: #334155;
-      object-fit: cover;
-      flex-shrink: 0;
-    }
-
-    .username {
-      font-weight: 600;
-      font-size: 0.95rem;
-    }
-
-    .time {
-      font-size: 0.75rem;
-      color: var(--muted);
-    }
-
-    .content {
-      margin-top: 0.8rem;
-      font-size: 0.95rem;
-      line-height: 1.5;
-      white-space: pre-wrap;
-    }
-
-    .empty {
-      text-align: center;
-      color: var(--muted);
-      margin-top: 4rem;
-      font-size: 0.95rem;
-    }
-
-    .user-link {
-      text-decoration: none;
-      color: inherit;
-    }
-
-    .user-link.username:hover {
-      text-decoration: underline;
-      color: var(--accent);
-    }
-
-    /* Floating Action Button */
-    .fab {
-      position: fixed;
-      right: 1.5rem;
-      bottom: 1.5rem;
-      width: 56px;
-      height: 56px;
+      width: 42px;
+      height: 42px;
       border-radius: 50%;
       background: var(--accent);
       display: grid;
       place-items: center;
-      box-shadow: 0 15px 35px rgba(56,189,248,.35);
-      cursor: pointer;
-      transition: transform .15s ease, box-shadow .15s ease;
+      font-weight: bold;
+      font-size: 1.1rem;
     }
 
-    .fab:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 20px 45px rgba(56,189,248,.45);
+    .username {
+      font-weight: 600;
     }
 
-    .fab svg {
-      width: 26px;
-      height: 26px;
-      stroke: #020617;
+    .timestamp {
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+
+    .post-content {
+      line-height: 1.6;
+      font-size: 1.05rem;
+      margin-top: 0.5rem;
+    }
+
+    .status {
+      text-align: center;
+      padding: 2rem;
+      color: var(--muted);
+    }
+
+    footer {
+      text-align: center;
+      padding: 2rem;
+      font-size: 0.85rem;
+      color: var(--muted);
     }
   </style>
 </head>
@@ -143,83 +171,174 @@
 
 <header>
   <span>Bakhresa</span>
+  <button id="signoutBtn" class="signout">Sign out</button>
 </header>
 
-<main id="feed">
-  <div class="empty">Loading feed…</div>
+<main>
+  <div class="composer">
+    <textarea id="postInput" placeholder="What's on your mind?"></textarea>
+    <div class="composer-footer">
+      <span class="char-count" id="charCount">0 / 500</span>
+      <button id="postBtn" class="post-btn" disabled>Post</button>
+    </div>
+  </div>
+
+  <div id="postsContainer" class="posts"></div>
+  <div id="status" class="status">Loading posts...</div>
 </main>
 
-<!-- Floating Add Post Button -->
-<a class="fab" href="add-post.html" aria-label="Add post">
-  <svg fill="none" viewBox="0 0 24 24" stroke-width="2">
-    <path stroke-linecap="round" stroke-linejoin="round"
-      d="M12 4v16m8-8H4" />
-  </svg>
-</a>
+<footer>
+  Auth powered by Supabase • © 2025–2026
+</footer>
 
 <script>
+  /* ==============================
+     SUPABASE CONFIG
+  ============================== */
   const supabase = window.supabase.createClient(
     "https://osaxbfinrlnabjllcfgv.supabase.co",
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9zYXhiZmlucmxuYWJqbGxjZmd2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU1MDY4OTEsImV4cCI6MjA4MTA4Mjg5MX0.qiQzxhYAgd3S_PZUBrT0eYsMfPgSRqP9j7LQq1h4iQE"
   );
 
-  async function loadFeed() {
-    const { data, error } = await supabase
+  const postInput = document.getElementById("postInput");
+  const postBtn = document.getElementById("postBtn");
+  const charCount = document.getElementById("charCount");
+  const postsContainer = document.getElementById("postsContainer");
+  const status = document.getElementById("status");
+  const signoutBtn = document.getElementById("signoutBtn");
+
+  let currentUser = null;
+
+  /* ==============================
+     AUTH STATE & REDIRECT IF NOT LOGGED IN
+  ============================== */
+  supabase.auth.onAuthStateChange((event, session) => {
+    if (!session) {
+      window.location.href = "index.html";
+      return;
+    }
+    currentUser = session.user;
+    loadPosts();
+  });
+
+  // Initial session check
+  supabase.auth.getSession().then(({ data: { session } }) => {
+    if (!session) {
+      window.location.href = "index.html";
+    } else {
+      currentUser = session.user;
+      loadPosts();
+    }
+  });
+
+  /* ==============================
+     POST COMPOSER
+  ============================== */
+  postInput.addEventListener("input", () => {
+    const length = postInput.value.length;
+    charCount.textContent = `${length} / 500`;
+    postBtn.disabled = length === 0 || length > 500;
+    postBtn.classList.toggle("active", length > 0 && length <= 500);
+  });
+
+  postBtn.addEventListener("click", async () => {
+    const content = postInput.value.trim();
+    if (!content || content.length > 500) return;
+
+    postBtn.disabled = true;
+    postBtn.textContent = "Posting...";
+
+    const { error } = await supabase
       .from("posts")
-      .select(`
-        content,
-        created_at,
-        profiles (
-          username,
-          avatar_url
-        )
-      `)
+      .insert({ content, user_id: currentUser.id });
+
+    if (error) {
+      alert("Error posting: " + error.message);
+    } else {
+      postInput.value = "";
+      postInput.dispatchEvent(new Event("input"));
+      loadPosts();
+    }
+
+    postBtn.textContent = "Post";
+  });
+
+  /* ==============================
+     LOAD & RENDER POSTS
+  ============================== */
+  async function loadPosts() {
+    status.textContent = "Loading posts...";
+
+    const { data: posts, error } = await supabase
+      .from("posts")
+      .select("*, profiles(username, avatar_url)")
       .order("created_at", { ascending: false });
 
-    const feed = document.getElementById("feed");
-    feed.innerHTML = "";
-
-    if (error || !data || data.length === 0) {
-      feed.innerHTML = `
-        <div class="empty">
-          No posts yet.<br />
-          Be the first to say something.
-        </div>
-      `;
+    if (error) {
+      status.textContent = "Error loading posts: " + error.message;
       return;
     }
 
-    data.forEach(post => {
-      const p = post.profiles || {};
-      const div = document.createElement("div");
-      div.className = "post";
+    postsContainer.innerHTML = "";
+    if (posts.length === 0) {
+      status.textContent = "No posts yet. Be the first to share something!";
+      return;
+    }
 
-      div.innerHTML = `
+    status.style.display = "none";
+
+    posts.forEach(post => {
+      const postEl = document.createElement("div");
+      postEl.className = "post";
+
+      const username = post.profiles?.username || post.user_id.slice(0, 8);
+      const avatarLetter = username[0]?.toUpperCase() || "U";
+
+      const timeAgo = timeSince(new Date(post.created_at));
+
+      postEl.innerHTML = `
         <div class="post-header">
-          <a href="user-details.html?username=${p.username}" class="user-link">
-            <img class="avatar"
-              src="${p.avatar_url || 'https://api.dicebear.com/7.x/identicon/svg?seed=' + (p.username || 'user')}">
-          </a>
-
+          <div class="avatar">${avatarLetter}</div>
           <div>
-            <a href="user-details.html?username=${p.username}"
-               class="user-link username">
-              @${p.username || 'unknown'}
-            </a>
-            <div class="time">
-              ${new Date(post.created_at).toLocaleString()}
-            </div>
+            <div class="username">${username}</div>
+            <div class="timestamp">${timeAgo}</div>
           </div>
         </div>
-
-        <div class="content">${post.content}</div>
+        <div class="post-content">${escapeHtml(post.content)}</div>
       `;
 
-      feed.appendChild(div);
+      postsContainer.appendChild(postEl);
     });
   }
 
-  loadFeed();
+  function timeSince(date) {
+    const seconds = Math.floor((new Date() - date) / 1000);
+    let interval = seconds / 31536000;
+    if (interval > 1) return Math.floor(interval) + "y";
+    interval = seconds / 2592000;
+    if (interval > 1) return Math.floor(interval) + "mo";
+    interval = seconds / 86400;
+    if (interval > 1) return Math.floor(interval) + "d";
+    interval = seconds / 3600;
+    if (interval > 1) return Math.floor(interval) + "h";
+    interval = seconds / 60;
+    if (interval > 1) return Math.floor(interval) + "m";
+    return Math.floor(seconds) + "s";
+  }
+
+  function escapeHtml(text) {
+    const div = document.createElement("div");
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  /* ==============================
+     SIGN OUT
+  ============================== */
+  signoutBtn.addEventListener("click", async () => {
+    await supabase.auth.signOut();
+    window.location.href = "index.html";
+  });
 </script>
 
 </body>
