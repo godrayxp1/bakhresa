@@ -8,128 +8,48 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <style>
-    :root {
-      --bg: #020617;
-      --border: #1e293b;
-      --text: #e5e7eb;
-      --muted: #94a3b8;
-      --accent: #38bdf8;
-    }
-
-    * {
-      box-sizing: border-box;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-    }
-
-    body {
-      margin: 0;
-      min-height: 100vh;
-      background: linear-gradient(135deg, #020617, #0f172a);
-      color: var(--text);
-    }
+    :root { --bg: #020617; --border: #1e293b; --text: #e5e7eb; --muted: #94a3b8; --accent: #38bdf8; }
+    * { box-sizing: border-box; font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif; }
+    body { margin: 0; min-height: 100vh; background: linear-gradient(135deg, #020617, #0f172a); color: var(--text); }
 
     header {
-      position: sticky;
-      top: 0;
-      background: rgba(2,6,23,.85);
-      backdrop-filter: blur(10px);
-      border-bottom: 1px solid var(--border);
-      padding: 1rem 1.5rem;
-      font-weight: 700;
+      position: sticky; top: 0; background: rgba(2,6,23,.85); backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border); padding: 1rem 1.5rem; font-weight: 700;
     }
 
-    main {
-      max-width: 640px;
-      margin: auto;
-      padding: 1.5rem;
-    }
+    main { max-width: 640px; margin: auto; padding: 1.5rem; }
 
-    .profile {
-      display: flex;
-      gap: 1rem;
-      align-items: center;
-      margin-bottom: 1.5rem;
-    }
+    .profile { display: flex; gap: 1rem; align-items: center; margin-bottom: 1.5rem; }
+    .avatar { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; background: #334155; }
+    .username { font-size: 1.4rem; font-weight: 700; }
+    .bio { color: var(--muted); margin-top: 0.5rem; }
 
-    .avatar {
-      width: 80px;
-      height: 80px;
-      border-radius: 50%;
-      object-fit: cover;
-      background: #334155;
-    }
-
-    .username {
-      font-size: 1.2rem;
-      font-weight: 700;
-    }
-
-    .bio {
-      color: var(--muted);
-      font-size: 0.9rem;
-      margin-top: 0.25rem;
-    }
-
-    .divider {
-      height: 1px;
-      background: var(--border);
-      margin: 1.5rem 0;
-    }
+    .divider { height: 1px; background: var(--border); margin: 2rem 0; }
 
     .post {
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 1rem;
-      margin-bottom: 1.2rem;
-      background: rgba(2,6,23,.6);
+      border: 1px solid var(--border); border-radius: 16px; padding: 1.2rem;
+      margin-bottom: 1.2rem; background: rgba(15,23,42,.6);
     }
 
-    .time {
-      font-size: 0.75rem;
-      color: var(--muted);
-      margin-bottom: 0.4rem;
-    }
+    .time { font-size: 0.8rem; color: var(--muted); margin-bottom: 0.5rem; }
+    .content { line-height: 1.6; white-space: pre-wrap; }
 
-    .content {
-      font-size: 0.95rem;
-      line-height: 1.5;
-      white-space: pre-wrap;
-    }
+    .empty { text-align: center; color: var(--muted); padding: 3rem 0; }
 
-    .empty {
-      text-align: center;
-      color: var(--muted);
-      margin-top: 3rem;
-    }
-
-    .back {
-      display: inline-block;
-      margin-bottom: 1rem;
-      color: var(--muted);
-      text-decoration: none;
-      font-size: 0.85rem;
-    }
-
-    .back:hover {
-      color: var(--accent);
-    }
+    .back { display: inline-block; margin-bottom: 1rem; color: var(--muted); text-decoration: none; }
+    .back:hover { color: var(--accent); }
   </style>
 </head>
 
 <body>
-
 <header>Bakhresa</header>
 
 <main>
   <a href="feed.html" class="back">← Back to feed</a>
 
   <div id="profile"></div>
-
   <div class="divider"></div>
-
-  <div id="posts">
-    <div class="empty">Loading posts…</div>
-  </div>
+  <div id="posts"></div>
 </main>
 
 <script>
@@ -138,87 +58,107 @@
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9zYXhiZmlucmxuYWJqbGxjZmd2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU1MDY4OTEsImV4cCI6MjA4MTA4Mjg5MX0.qiQzxhYAgd3S_PZUBrT0eYsMfPgSRqP9j7LQq1h4iQE"
   );
 
-  const params = new URLSearchParams(window.location.search);
-  const username = params.get("username");
+  const params = new URLSearchParams(location.search);
+  const requestedUsername = params.get("username");
 
-  if (!username) {
+  if (!requestedUsername) {
     window.location.href = "feed.html";
   }
 
-  /* ==========================
-     AUTH GUARD
-  ========================== */
-  async function requireAuth() {
-    const { data } = await supabase.auth.getSession();
-    if (!data.session) {
-      window.location.href = "index.html";
-    }
-  }
+  let currentUser = null;
 
-  /* ==========================
-     LOAD PROFILE
-  ========================== */
+  // Auth guard
+  supabase.auth.getSession().then(({ data: { session } }) => {
+    if (!session) window.location.href = "index.html";
+    currentUser = session.user;
+    loadProfile();
+  });
+
   async function loadProfile() {
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("username", username)
-      .single();
+    // First: try to get from profiles table (if you add it later)
+    let profileData = null;
+    let userId = null;
 
-    if (error || !data) {
-      document.getElementById("profile").innerHTML =
-        `<div class="empty">User not found</div>`;
-      return;
+    const { data: profileFromTable } = await supabase
+      .from("profiles")
+      .select("id, username, avatar_url, bio")
+      .eq("username", requestedUsername)
+      .single()
+      .throwOnError()
+      .catch(() => ({ data: null }));
+
+    if (profileFromTable) {
+      profileData = profileFromTable;
+      userId = profileFromTable.id;
+    } else {
+      // Fallback: assume it's current user or use GitHub metadata (only works reliably for current user)
+      if (currentUser && (currentUser.user_metadata.preferred_username || currentUser.user_metadata.login) === requestedUsername) {
+        userId = currentUser.id;
+        profileData = {
+          username: requestedUsername,
+          avatar_url: currentUser.user_metadata.avatar_url,
+          bio: null
+        };
+      } else {
+        document.getElementById("profile").innerHTML = `<div class="empty">User not found</div>`;
+        return;
+      }
     }
 
     document.getElementById("profile").innerHTML = `
       <div class="profile">
-        <img class="avatar"
-          src="${data.avatar_url || 'https://api.dicebear.com/7.x/identicon/svg?seed=' + username}">
+        <img class="avatar" src="${profileData.avatar_url || 'https://api.dicebear.com/7.x/identicon/svg?seed=' + requestedUsername}"
+            onerror="this.src='https://api.dicebear.com/7.x/identicon/svg?seed=${requestedUsername}'">
         <div>
-          <div class="username">@${data.username}</div>
-          <div class="bio">${data.bio || "No bio provided."}</div>
+          <div class="username">@${profileData.username}</div>
+          <div class="bio">${profileData.bio || "No bio yet."}</div>
         </div>
       </div>
     `;
 
-    loadPosts(data.id);
+    loadPosts(userId);
   }
 
-  /* ==========================
-     LOAD USER POSTS
-  ========================== */
   async function loadPosts(userId) {
-    const { data, error } = await supabase
+    const { data: posts } = await supabase
       .from("posts")
       .select("content, created_at")
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
 
-    const posts = document.getElementById("posts");
-    posts.innerHTML = "";
+    const container = document.getElementById("posts");
+    container.innerHTML = "";
 
-    if (error || !data || data.length === 0) {
-      posts.innerHTML = `<div class="empty">No posts yet</div>`;
+    if (!posts || posts.length === 0) {
+      container.innerHTML = `<div class="empty">No posts yet</div>`;
       return;
     }
 
-    data.forEach(post => {
-      const div = document.createElement("div");
-      div.className = "post";
-
-      div.innerHTML = `
-        <div class="time">${new Date(post.created_at).toLocaleString()}</div>
-        <div class="content">${post.content}</div>
+    posts.forEach(post => {
+      const el = document.createElement("div");
+      el.className = "post";
+      el.innerHTML = `
+        <div class="time">${timeSince(new Date(post.created_at))}</div>
+        <div class="content">${escapeHtml(post.content)}</div>
       `;
-
-      posts.appendChild(div);
+      container.appendChild(el);
     });
   }
 
-  requireAuth();
-  loadProfile();
-</script>
+  function timeSince(date) {
+    const s = Math.floor((Date.now() - date) / 1000);
+    if (s < 60) return s + "s ago";
+    if (s < 3600) return Math.floor(s/60) + "m ago";
+    if (s < 86400) return Math.floor(s/3600) + "h ago";
+    if (s < 2592000) return Math.floor(s/86400) + "d ago";
+    return new Date(date).toLocaleDateString();
+  }
 
+  function escapeHtml(text) {
+    const div = document.createElement("div");
+    div.textContent = text;
+    return div.innerHTML;
+  }
+</script>
 </body>
 </html>
