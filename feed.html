@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Bakhresa — Feed</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: system-ui, sans-serif;
+      background: #020617;
+      color: #e5e7eb;
+      padding: 2rem;
+    }
+
+    .feed {
+      max-width: 600px;
+      margin: auto;
+    }
+
+    .post {
+      border: 1px solid #334155;
+      border-radius: 16px;
+      padding: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .meta {
+      font-size: 0.85rem;
+      color: #94a3b8;
+      margin-bottom: 0.5rem;
+    }
+
+    .actions {
+      display: flex;
+      gap: 1rem;
+      margin-top: 0.8rem;
+      font-size: 0.85rem;
+      cursor: pointer;
+      color: #38bdf8;
+    }
+
+    .comments {
+      margin-top: 0.8rem;
+      font-size: 0.85rem;
+    }
+
+    input {
+      width: 100%;
+      margin-top: 0.5rem;
+      padding: 0.5rem;
+      border-radius: 8px;
+      border: 1px solid #334155;
+      background: #020617;
+      color: #e5e7eb;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="feed" id="feed"></div>
+
+  <script>
+    const supabase = supabaseJs.createClient(
+      "https://osaxbfinrlnabjllcfgv.supabase.co",
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9zYXhiZmlucmxuYWJqbGxjZmd2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU1MDY4OTEsImV4cCI6MjA4MTA4Mjg5MX0.qiQzxhYAgd3S_PZUBrT0eYsMfPgSRqP9j7LQq1h4iQE"
+    );
+
+    async function loadFeed() {
+      const { data: posts } = await supabase
+        .from("posts")
+        .select(`
+          id,
+          content,
+          created_at,
+          profiles(username),
+          post_likes(count),
+          comments(
+            content,
+            profiles(username)
+          )
+        `)
+        .order("created_at", { ascending: false });
+
+      const feed = document.getElementById("feed");
+      feed.innerHTML = "";
+
+      posts.forEach(post => {
+        const el = document.createElement("div");
+        el.className = "post";
+
+        el.innerHTML = `
+          <div class="meta">@${post.profiles.username} • ${new Date(post.created_at).toLocaleString()}</div>
+          <div>${post.content}</div>
+
+          <div class="actions">
+            <span onclick="likePost('${post.id}')">❤️ ${post.post_likes[0]?.count || 0}</span>
+          </div>
+
+          <div class="comments">
+            ${post.comments.map(c => `<div><b>@${c.profiles.username}</b>: ${c.content}</div>`).join("")}
+            <input placeholder="Add comment..." onkeydown="comment(event, '${post.id}')"/>
+          </div>
+        `;
+
+        feed.appendChild(el);
+      });
+    }
+
+    async function likePost(postId) {
+      const { data } = await supabase.auth.getUser();
+      if (!data.user) return alert("Login first");
+
+      await supabase.from("post_likes").insert({
+        post_id: postId,
+        user_id: data.user.id
+      });
+
+      loadFeed();
+    }
+
+    async function comment(e, postId) {
+      if (e.key !== "Enter") return;
+
+      const text = e.target.value.trim();
+      if (!text) return;
+
+      const { data } = await supabase.auth.getUser();
+      if (!data.user) return;
+
+      await supabase.from("comments").insert({
+        post_id: postId,
+        user_id: data.user.id,
+        content: text
+      });
+
+      e.target.value = "";
+      loadFeed();
+    }
+
+    loadFeed();
+  </script>
+
+</body>
+</html>
