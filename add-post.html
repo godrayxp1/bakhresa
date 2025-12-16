@@ -3,134 +3,198 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Bakhresa — Add Post</title>
+  <title>Bakhresa • New Post</title>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <style>
-    body {
-      margin: 0;
-      font-family: system-ui, sans-serif;
-      background: #020617;
-      color: #e5e7eb;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
+    :root {
+      --bg: #020617;
+      --border: #1e293b;
+      --text: #e5e7eb;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
     }
 
-    .box {
+    * {
+      box-sizing: border-box;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #020617, #0f172a);
+      color: var(--text);
+      display: grid;
+      place-items: center;
+      padding: 1.5rem;
+    }
+
+    .card {
       width: 100%;
-      max-width: 500px;
-      padding: 2rem;
-      border: 1px solid #334155;
-      border-radius: 16px;
-      background: #020617;
+      max-width: 520px;
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 1.5rem;
+      background: rgba(2,6,23,.7);
     }
 
     h1 {
-      margin-bottom: 1rem;
-      text-align: center;
+      margin: 0 0 1rem;
+      font-size: 1.4rem;
     }
 
     textarea {
       width: 100%;
-      height: 120px;
+      min-height: 140px;
+      resize: vertical;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 14px;
       padding: 1rem;
-      border-radius: 12px;
-      border: 1px solid #334155;
-      background: #020617;
-      color: #e5e7eb;
-      resize: none;
+      color: var(--text);
+      font-size: 0.95rem;
+      outline: none;
+    }
+
+    textarea::placeholder {
+      color: var(--muted);
+    }
+
+    .actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 1rem;
+    }
+
+    .char-count {
+      font-size: 0.8rem;
+      color: var(--muted);
     }
 
     button {
-      margin-top: 1rem;
-      width: 100%;
-      padding: 0.8rem;
-      border-radius: 12px;
-      border: none;
-      background: #38bdf8;
+      background: var(--accent);
       color: #020617;
-      font-weight: 700;
+      border: none;
+      padding: 0.7rem 1.2rem;
+      border-radius: 12px;
+      font-weight: 600;
       cursor: pointer;
     }
 
-    .msg {
-      margin-top: 1rem;
-      text-align: center;
-      font-size: 0.9rem;
-      color: #22c55e;
-      display: none;
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
     }
 
-    a {
-      display: block;
-      text-align: center;
-      margin-top: 1.5rem;
-      color: #38bdf8;
+    .status {
+      margin-top: 0.8rem;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    .back {
+      position: absolute;
+      top: 1rem;
+      left: 1rem;
+      color: var(--muted);
       text-decoration: none;
+      font-size: 0.85rem;
+    }
+
+    .back:hover {
+      color: var(--accent);
     }
   </style>
 </head>
 
 <body>
 
-  <div class="box">
-    <h1>Create Post</h1>
+<a href="feed.html" class="back">← Back to feed</a>
 
-    <textarea id="content" placeholder="Say something meaningful…"></textarea>
+<div class="card">
+  <h1>Create a post</h1>
 
-    <button id="submitBtn">Upload Post</button>
+  <textarea
+    id="content"
+    placeholder="What’s happening?"
+    maxlength="500"
+  ></textarea>
 
-    <div class="msg" id="successMsg">
-      Post uploaded successfully
-    </div>
-
-    <a href="./index.html">← Back Home</a>
+  <div class="actions">
+    <div class="char-count" id="count">0 / 500</div>
+    <button id="postBtn" disabled>Post</button>
   </div>
 
-  <script>
-    const supabaseUrl = "https://osaxbfinrlnabjllcfgv.supabase.co";
-    const supabaseAnonKey =
-      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9zYXhiZmlucmxuYWJqbGxjZmd2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU1MDY4OTEsImV4cCI6MjA4MTA4Mjg5MX0.qiQzxhYAgd3S_PZUBrT0eYsMfPgSRqP9j7LQq1h4iQE";
+  <div class="status" id="status"></div>
+</div>
 
-    const supabase = window.supabase.createClient(
-      supabaseUrl,
-      supabaseAnonKey
-    );
+<script>
+  const supabase = window.supabase.createClient(
+    "https://osaxbfinrlnabjllcfgv.supabase.co",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9zYXhiZmlucmxuYWJqbGxjZmd2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU1MDY4OTEsImV4cCI6MjA4MTA4Mjg5MX0.qiQzxhYAgd3S_PZUBrT0eYsMfPgSRqP9j7LQq1h4iQE"
+  );
 
-    async function ensureAuth() {
-      const { data } = await supabase.auth.getUser();
-      if (!data.user) {
-        window.location.href = "./index.html";
-      }
-      return data.user;
+  const textarea = document.getElementById("content");
+  const postBtn = document.getElementById("postBtn");
+  const status = document.getElementById("status");
+  const count = document.getElementById("count");
+
+  let userId = null;
+
+  /* ==========================
+     AUTH GUARD
+  ========================== */
+  async function requireAuth() {
+    const { data } = await supabase.auth.getSession();
+
+    if (!data.session) {
+      window.location.href = "index.html";
+      return;
     }
 
-    document.getElementById("submitBtn").addEventListener("click", async () => {
-      const content = document.getElementById("content").value.trim();
-      if (!content) return;
+    userId = data.session.user.id;
+  }
 
-      const user = await ensureAuth();
+  /* ==========================
+     UI LOGIC
+  ========================== */
+  textarea.addEventListener("input", () => {
+    const len = textarea.value.length;
+    count.textContent = `${len} / 500`;
+    postBtn.disabled = len === 0;
+  });
 
-      const { error } = await supabase
-        .from("posts")
-        .insert({
-          user_id: user.id,
-          content
-        });
+  /* ==========================
+     CREATE POST
+  ========================== */
+  postBtn.addEventListener("click", async () => {
+    const content = textarea.value.trim();
+    if (!content) return;
 
-      if (!error) {
-        content.value = "";
-        const msg = document.getElementById("successMsg");
-        msg.style.display = "block";
-        setTimeout(() => msg.style.display = "none", 2000);
-      }
-    });
+    postBtn.disabled = true;
+    status.textContent = "Posting…";
 
-    ensureAuth();
-  </script>
+    const { error } = await supabase
+      .from("posts")
+      .insert({
+        content,
+        user_id: userId
+      });
+
+    if (error) {
+      status.textContent = "Failed to post. Try again.";
+      postBtn.disabled = false;
+      return;
+    }
+
+    window.location.href = "feed.html";
+  });
+
+  requireAuth();
+</script>
 
 </body>
 </html>
