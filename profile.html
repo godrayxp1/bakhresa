@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Bakhresa — Profile</title>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: system-ui, sans-serif;
+      background: #020617;
+      color: #e5e7eb;
+      padding: 2rem;
+    }
+
+    .container {
+      max-width: 500px;
+      margin: auto;
+      background: #020617;
+      border: 1px solid #334155;
+      border-radius: 16px;
+      padding: 2rem;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 1.5rem;
+    }
+
+    label {
+      display: block;
+      margin-top: 1rem;
+      font-size: 0.9rem;
+      color: #94a3b8;
+    }
+
+    input, textarea {
+      width: 100%;
+      padding: 0.7rem;
+      margin-top: 0.4rem;
+      border-radius: 8px;
+      border: 1px solid #334155;
+      background: #020617;
+      color: #e5e7eb;
+    }
+
+    textarea {
+      resize: vertical;
+    }
+
+    button {
+      margin-top: 1.5rem;
+      width: 100%;
+      padding: 0.9rem;
+      border-radius: 10px;
+      border: none;
+      background: #38bdf8;
+      color: #020617;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .status {
+      text-align: center;
+      margin-top: 1rem;
+      font-size: 0.9rem;
+      color: #22c55e;
+      display: none;
+    }
+
+    a {
+      display: block;
+      text-align: center;
+      margin-top: 1.5rem;
+      color: #38bdf8;
+      text-decoration: none;
+    }
+  </style>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+
+<body>
+
+  <div class="container">
+    <h1>Edit Profile</h1>
+
+    <label>Full Name</label>
+    <input id="full_name" />
+
+    <label>Bio</label>
+    <textarea id="bio" rows="3"></textarea>
+
+    <label>Status</label>
+    <input id="status" />
+
+    <label>Phone</label>
+    <input id="phone" />
+
+    <button id="saveBtn">Save Profile</button>
+
+    <div class="status" id="successMsg">
+      Profile updated successfully
+    </div>
+
+    <a href="./index.html">← Back to Home</a>
+  </div>
+
+  <script>
+    const supabaseUrl = "https://osaxbfinrlnabjllcfgv.supabase.co";
+    const supabaseAnonKey =
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9zYXhiZmlucmxuYWJqbGxjZmd2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU1MDY4OTEsImV4cCI6MjA4MTA4Mjg5MX0.qiQzxhYAgd3S_PZUBrT0eYsMfPgSRqP9j7LQq1h4iQE";
+
+    const supabase = window.supabase.createClient(
+      supabaseUrl,
+      supabaseAnonKey
+    );
+
+    async function loadProfile() {
+      const { data: userData } = await supabase.auth.getUser();
+
+      if (!userData.user) {
+        window.location.href = "./index.html";
+        return;
+      }
+
+      const { data } = await supabase
+        .from("profiles")
+        .select("full_name, bio, phone, status")
+        .eq("id", userData.user.id)
+        .single();
+
+      if (data) {
+        full_name.value = data.full_name ?? "";
+        bio.value = data.bio ?? "";
+        phone.value = data.phone ?? "";
+        status.value = data.status ?? "";
+      }
+    }
+
+    document.getElementById("saveBtn").addEventListener("click", async () => {
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) return;
+
+      await supabase
+        .from("profiles")
+        .update({
+          full_name: full_name.value,
+          bio: bio.value,
+          phone: phone.value,
+          status: status.value
+        })
+        .eq("id", userData.user.id);
+
+      document.getElementById("successMsg").style.display = "block";
+      setTimeout(() => {
+        document.getElementById("successMsg").style.display = "none";
+      }, 2000);
+    });
+
+    loadProfile();
+  </script>
+
+</body>
+</html>
