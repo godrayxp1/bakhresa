@@ -8,8 +8,6 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <style>
-    /* [All previous styles remain the same until .post-header] */
-
     :root {
       --bg: #020617;
       --card: #0f172a;
@@ -45,7 +43,23 @@
     textarea:focus { min-height: 100px; }
     textarea::placeholder { color: var(--muted); }
 
-    .composer-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 0.8rem; }
+    .composer-footer {
+      display: flex; justify-content: space-between; align-items: center; margin-top: 0.8rem;
+    }
+
+    .attach-btn {
+      background: transparent; border: none; color: var(--accent); cursor: pointer; font-size: 1.3rem;
+    }
+
+    .preview-image {
+      max-width: 100%; max-height: 300px; border-radius: 12px; margin-top: 0.8rem; object-fit: contain;
+    }
+
+    .remove-image {
+      position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.6); color: white;
+      border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer;
+    }
+
     .char-count { color: var(--muted); font-size: 0.85rem; }
 
     .post-btn {
@@ -85,6 +99,10 @@
       line-height: 1.6; font-size: 1.05rem; margin-top: 0.5rem; white-space: pre-wrap;
     }
 
+    .post-image {
+      max-width: 100%; border-radius: 12px; margin-top: 1rem; cursor: pointer;
+    }
+
     .status { text-align: center; padding: 2rem; color: var(--muted); }
 
     footer { text-align: center; padding: 2rem; font-size: 0.85rem; color: var(--muted); }
@@ -100,7 +118,13 @@
 <main>
   <div class="composer">
     <textarea id="postInput" placeholder="What's on your mind?"></textarea>
+    <div id="imagePreview" style="position:relative; display:none;">
+      <img id="previewImg" class="preview-image">
+      <button class="remove-image" id="removeImage">×</button>
+    </div>
     <div class="composer-footer">
+      <button class="attach-btn" id="attachBtn" title="Attach image">📎</button>
+      <input type="file" id="imageInput" accept="image/*" style="display:none;">
       <span class="char-count" id="charCount">0 / 500</span>
       <button id="postBtn" class="post-btn" disabled>Post</button>
     </div>
@@ -121,8 +145,9 @@
   let currentUser = null;
   let currentUsername = null;
   let currentAvatarUrl = null;
+  let selectedImage = null; // File object
 
-  // Auth + redirect if not logged in
+  // Auth handling (same as before)
   supabase.auth.onAuthStateChange((_, session) => {
     if (!session) window.location.href = "index.html";
     else init(session.user);
@@ -140,43 +165,126 @@
     loadPosts();
   }
 
-  // Composer logic (unchanged)
+  // Image attachment
+  const attachBtn = document.getElementById("attachBtn");
+  const imageInput = document.getElementById("imageInput");
+  const imagePreview = document.getElementById("imagePreview");
+  const previewImg = document.getElementById("previewImg");
+  const removeImage = document.getElementById("removeImage");
+
+  attachBtn.addEventListener("click", () => imageInput.click());
+
+  imageInput.addEventListener("change", async (e) => {
+    const file = e.target.files[0];
+    if (!file || !file.type.startsWith("image/")) return;
+
+    // Compress image client-side
+    const compressedBlob = await compressImage(file);
+    selectedImage = new File([compressedBlob], file.name, { type: compressedBlob.type });
+
+    previewImg.src = URL.createObjectURL(selectedImage);
+    imagePreview.style.display = "block";
+    updatePostButton();
+  });
+
+  removeImage.addEventListener("click", () => {
+    selectedImage = null;
+    imagePreview.style.display = "none";
+    imageInput.value = "";
+    updatePostButton();
+  });
+
+  async function compressImage(file) {
+    const img = new Image();
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+
+    const bitmap = await createImageBitmap(file);
+    let width = bitmap.width;
+    let height = bitmap.height;
+
+    // Limit to max 1500px on longest side (good quality, reasonable size)
+    if (width > height && width > 1500) {
+      height = (height / width) * 1500;
+      width = 1500;
+    } else if (height > 1500) {
+      width = (width / height) * 1500;
+      height = 1500;
+    }
+
+    canvas.width = width;
+    canvas.height = height;
+    ctx.drawImage(bitmap, 0, 0, width, height);
+
+    return await new Promise(resolve => canvas.toBlob(resolve, "image/jpeg", 0.85)); // 85% quality JPEG
+  }
+
+  // Composer
   const postInput = document.getElementById("postInput");
   const postBtn = document.getElementById("postBtn");
   const charCount = document.getElementById("charCount");
 
-  postInput.addEventListener("input", () => {
+  postInput.addEventListener("input", updatePostButton);
+
+  function updatePostButton() {
     const len = postInput.value.length;
     charCount.textContent = `${len} / 500`;
-    const valid = len > 0 && len <= 500;
-    postBtn.disabled = !valid;
-    postBtn.classList.toggle("active", valid);
-  });
+    const hasContent = len > 0 || selectedImage;
+    postBtn.disabled = !hasContent || len > 500;
+    postBtn.classList.toggle("active", hasContent && len <= 500);
+  }
 
   postBtn.addEventListener("click", async () => {
     const content = postInput.value.trim();
-    if (!content) return;
+    if (!content && !selectedImage) return;
 
     postBtn.disabled = true;
     postBtn.textContent = "Posting...";
 
-    const { error } = await supabase.from("posts").insert({ content, user_id: currentUser.id });
+    let imagePath = null;
 
-    if (error) alert("Error: " + error.message);
+    if (selectedImage) {
+      const fileExt = selectedImage.name.split('.').pop();
+      const fileName = `${crypto.randomUUID()}.${fileExt}`;
+      const { error: uploadError } = await supabase.storage
+        .from("post-images")
+        .upload(fileName, selectedImage, { upsert: true });
+
+      if (uploadError) {
+        alert("Image upload failed: " + uploadError.message);
+        postBtn.textContent = "Post";
+        postBtn.disabled = false;
+        return;
+      }
+      imagePath = fileName;
+    }
+
+    const { error } = await supabase
+      .from("posts")
+      .insert({ content: content || null, user_id: currentUser.id, image_path: imagePath });
+
+    if (error) alert("Error posting: " + error.message);
     else {
       postInput.value = "";
-      postInput.dispatchEvent(new Event("input"));
+      selectedImage = null;
+      imagePreview.style.display = "none";
+      imageInput.value = "";
+      updatePostButton();
       loadPosts();
     }
+
     postBtn.textContent = "Post";
     postBtn.disabled = false;
   });
 
-  // Load and render posts
+  // Update posts table (one-time SQL in Supabase editor)
+  // ALTER TABLE posts ADD COLUMN image_path TEXT;
+
+  // Load posts
   async function loadPosts() {
     const { data: posts, error } = await supabase
       .from("posts")
-      .select("id, content, created_at, user_id")
+      .select("id, content, created_at, user_id, image_path")
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -193,7 +301,6 @@
       return;
     }
 
-    // Fetch profiles if they exist (optional)
     let profiles = {};
     try {
       const { data } = await supabase.from("profiles").select("id, username, avatar_url");
@@ -217,6 +324,13 @@
         + `<div class="avatar fallback" style="display:none">${username[0].toUpperCase()}</div>`
         : `<div class="avatar fallback">${username[0].toUpperCase()}</div>`;
 
+      let imageHtml = "";
+      if (post.image_path) {
+        const publicUrl = supabase.storage.from("post-images").getPublicUrl(post.image_path).data.publicUrl;
+        const transformedUrl = `${publicUrl}?width=800&quality=80`; // On-the-fly optimization
+        imageHtml = `<img src="${transformedUrl}" class="post-image" alt="Post image" onclick="window.open('${publicUrl}', '_blank')">`;
+      }
+
       postEl.innerHTML = `
         <div class="post-header">
           <a href="user-details.html?username=${encodeURIComponent(username)}">
@@ -229,7 +343,8 @@
             <div class="timestamp">${timeAgo}</div>
           </div>
         </div>
-        <div class="post-content">${escapeHtml(post.content)}</div>
+        ${post.content ? `<div class="post-content">${escapeHtml(post.content)}</div>` : ""}
+        ${imageHtml}
       `;
 
       container.appendChild(postEl);
