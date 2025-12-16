@@ -5,42 +5,24 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Bakhresa • Feed</title>
 
-  <!-- Supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <style>
-    :root {
-      --bg: #020617;
-      --card: #020617;
-      --border: #1e293b;
-      --text: #e5e7eb;
-      --muted: #94a3b8;
-      --accent: #38bdf8;
-    }
-
-    * {
-      box-sizing: border-box;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-    }
-
     body {
       margin: 0;
       background: linear-gradient(135deg, #020617, #0f172a);
-      color: var(--text);
+      color: #e5e7eb;
+      font-family: system-ui;
     }
 
     header {
       position: sticky;
       top: 0;
-      z-index: 10;
       background: rgba(2,6,23,0.9);
-      backdrop-filter: blur(12px);
-      border-bottom: 1px solid var(--border);
-      padding: 1rem 1.25rem;
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid #1e293b;
+      padding: 1rem;
       font-weight: 700;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
     }
 
     main {
@@ -50,21 +32,14 @@
     }
 
     .post {
-      border: 1px solid var(--border);
+      border: 1px solid #1e293b;
       border-radius: 16px;
       padding: 1rem;
       margin-bottom: 1rem;
-      background: var(--card);
+      background: #020617;
     }
 
     .post-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 0.75rem;
-    }
-
-    .user {
       display: flex;
       gap: 0.75rem;
       align-items: center;
@@ -75,8 +50,8 @@
       width: 44px;
       height: 44px;
       border-radius: 50%;
-      object-fit: cover;
       background: #334155;
+      object-fit: cover;
     }
 
     .username {
@@ -86,7 +61,7 @@
 
     .time {
       font-size: 0.75rem;
-      color: var(--muted);
+      color: #94a3b8;
     }
 
     .content {
@@ -100,28 +75,12 @@
       width: 100%;
       margin-top: 0.75rem;
       border-radius: 14px;
-      border: 1px solid var(--border);
-    }
-
-    .follow-btn {
-      border: 1px solid var(--accent);
-      background: transparent;
-      color: var(--accent);
-      padding: 0.35rem 0.75rem;
-      border-radius: 999px;
-      font-size: 0.75rem;
-      cursor: pointer;
-      font-weight: 600;
-    }
-
-    .follow-btn.following {
-      background: var(--accent);
-      color: #020617;
+      border: 1px solid #1e293b;
     }
 
     .empty {
       text-align: center;
-      color: var(--muted);
+      color: #94a3b8;
       margin-top: 3rem;
     }
 
@@ -132,10 +91,10 @@
       width: 56px;
       height: 56px;
       border-radius: 50%;
-      background: var(--accent);
+      background: #38bdf8;
       display: grid;
       place-items: center;
-      box-shadow: 0 10px 25px rgba(56,189,248,0.4);
+      box-shadow: 0 10px 25px rgba(56,189,248,.45);
       cursor: pointer;
     }
 
@@ -150,10 +109,7 @@
 
 <body>
 
-<header>
-  <div>🟦 Bakhresa</div>
-  <div id="me"></div>
-</header>
+<header>🟦 Bakhresa Feed</header>
 
 <main id="feed">
   <div class="empty">Loading feed…</div>
@@ -173,130 +129,80 @@
 
   let currentUserId = null;
 
-  /* =======================
-     AUTH GUARD
-  ======================= */
-  async function init() {
-    const { data } = await supabase.auth.getSession();
-
-    if (!data.session) {
+  /* =========================
+     AUTH GUARD (STABLE)
+  ========================= */
+  async function requireAuth() {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
       location.replace("index.html");
-      return;
+      return false;
     }
-
-    currentUserId = data.session.user.id;
-    loadFeed();
+    currentUserId = session.user.id;
+    return true;
   }
 
-  /* =======================
-     FOLLOW CHECK
-  ======================= */
-  async function isFollowing(userId) {
-    const { data } = await supabase
-      .from("follows")
-      .select("id")
-      .eq("follower_id", currentUserId)
-      .eq("following_id", userId)
-      .maybeSingle();
-
-    return !!data;
-  }
-
-  async function follow(userId) {
-    await supabase.from("follows").insert({
-      follower_id: currentUserId,
-      following_id: userId
-    });
-    loadFeed();
-  }
-
-  async function unfollow(userId) {
-    await supabase
-      .from("follows")
-      .delete()
-      .eq("follower_id", currentUserId)
-      .eq("following_id", userId);
-    loadFeed();
-  }
-
-  /* =======================
-     FEED LOADER (FIXED)
-  ======================= */
+  /* =========================
+     LOAD FEED (NO JOIN TRAPS)
+  ========================= */
   async function loadFeed() {
     const feed = document.getElementById("feed");
-    feed.innerHTML = `<div class="empty">Loading feed…</div>`;
-
-    const { data: follows } = await supabase
-      .from("follows")
-      .select("following_id")
-      .eq("follower_id", currentUserId);
-
-    const ids = (follows || []).map(f => f.following_id);
-    ids.push(currentUserId);
 
     const { data: posts, error } = await supabase
       .from("posts")
       .select(`
         id,
+        user_id,
         content,
         image_url,
-        created_at,
-        user_id,
-        profiles (
-          id,
-          username,
-          avatar_url
-        )
+        created_at
       `)
-      .in("user_id", ids)
       .order("created_at", { ascending: false });
-
-    feed.innerHTML = "";
 
     if (error || !posts || posts.length === 0) {
       feed.innerHTML = `<div class="empty">No posts yet</div>`;
       return;
     }
 
+    feed.innerHTML = "";
+
     for (const post of posts) {
-      const p = post.profiles || {};
-      const following = post.user_id !== currentUserId
-        ? await isFollowing(post.user_id)
-        : null;
+      // Fetch profile safely (optional, non-blocking)
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("username, avatar_url")
+        .eq("id", post.user_id)
+        .maybeSingle();
 
       const div = document.createElement("div");
       div.className = "post";
 
       div.innerHTML = `
-        <div class="post-header">
-          <div class="user" onclick="location.href='user-details.html?u=${p.id}'">
-            <img class="avatar" src="${p.avatar_url || ''}">
-            <div>
-              <div class="username">@${p.username || "unknown"}</div>
-              <div class="time">${new Date(post.created_at).toLocaleString()}</div>
-            </div>
+        <div class="post-header"
+             onclick="location.href='user-details.html?u=${post.user_id}'">
+          <img class="avatar" src="${profile?.avatar_url || ''}">
+          <div>
+            <div class="username">@${profile?.username || 'user'}</div>
+            <div class="time">${new Date(post.created_at).toLocaleString()}</div>
           </div>
-
-          ${
-            post.user_id !== currentUserId
-              ? `<button class="follow-btn ${following ? "following" : ""}"
-                   onclick="event.stopPropagation();
-                   ${following ? `unfollow('${post.user_id}')` : `follow('${post.user_id}')`}">
-                   ${following ? "Following" : "Follow"}
-                 </button>`
-              : ""
-          }
         </div>
 
-        <div class="content">${post.content || ""}</div>
-        ${post.image_url ? `<img src="${post.image_url}" class="post-image">` : ""}
+        <div class="content">${post.content || ''}</div>
+        ${post.image_url ? `<img src="${post.image_url}" class="post-image">` : ''}
       `;
 
       feed.appendChild(div);
     }
   }
 
-  init();
+  /* =========================
+     INIT
+  ========================= */
+  (async () => {
+    if (await requireAuth()) {
+      loadFeed();
+    }
+  })();
 </script>
 
 </body>
