@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <pre id="out">Loading…</pre>
+
+  <script>
+    const supabase = window.supabase.createClient(
+      "https://osaxbfinrlnabjllcfgv.supabase.co",
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9zYXhiZmlucmxuYWJqbGxjZmd2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU1MDY4OTEsImV4cCI6MjA4MTA4Mjg5MX0.qiQzxhYAgd3S_PZUBrT0eYsMfPgSRqP9j7LQq1h4iQE"
+    );
+
+    async function test() {
+      const { data, error } = await supabase
+        .from("posts")
+        .select("*");
+
+      document.getElementById("out").textContent =
+        JSON.stringify({ data, error }, null, 2);
+    }
+
+    test();
+  </script>
+</body>
+</html>
