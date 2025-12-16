@@ -3,38 +3,62 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Bakhresa Feed</title>
+  <title>Bakhresa • Feed</title>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <style>
+    :root {
+      --bg: #020617;
+      --card: #020617;
+      --border: #1e293b;
+      --text: #e5e7eb;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+    }
+
+    * {
+      box-sizing: border-box;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
     body {
       margin: 0;
-      background: #020617;
-      color: #e5e7eb;
-      font-family: system-ui;
+      background: linear-gradient(135deg, #020617, #0f172a);
+      color: var(--text);
+      min-height: 100vh;
     }
 
     header {
       position: sticky;
       top: 0;
-      background: #020617;
-      border-bottom: 1px solid #1e293b;
-      padding: 1rem;
-      font-weight: 600;
+      z-index: 10;
+      background: rgba(2,6,23,.85);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border);
+      padding: 1rem 1.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    header span {
+      font-weight: 700;
+      font-size: 1.05rem;
     }
 
     main {
-      max-width: 600px;
+      max-width: 640px;
       margin: auto;
-      padding: 1rem;
+      padding: 1.2rem;
     }
 
     .post {
-      border: 1px solid #1e293b;
-      border-radius: 12px;
+      border: 1px solid var(--border);
+      border-radius: 16px;
       padding: 1rem;
-      margin-bottom: 1rem;
+      margin-bottom: 1.2rem;
+      background: rgba(2,6,23,.6);
     }
 
     .post-header {
@@ -44,11 +68,12 @@
     }
 
     .avatar {
-      width: 42px;
-      height: 42px;
+      width: 44px;
+      height: 44px;
       border-radius: 50%;
       background: #334155;
       object-fit: cover;
+      flex-shrink: 0;
     }
 
     .username {
@@ -58,30 +83,79 @@
 
     .time {
       font-size: 0.75rem;
-      color: #94a3b8;
+      color: var(--muted);
     }
 
     .content {
-      margin-top: 0.6rem;
+      margin-top: 0.8rem;
       font-size: 0.95rem;
-      line-height: 1.4;
+      line-height: 1.5;
+      white-space: pre-wrap;
     }
 
     .empty {
       text-align: center;
-      color: #64748b;
-      margin-top: 3rem;
+      color: var(--muted);
+      margin-top: 4rem;
+      font-size: 0.95rem;
+    }
+
+    .user-link {
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .user-link.username:hover {
+      text-decoration: underline;
+      color: var(--accent);
+    }
+
+    /* Floating Action Button */
+    .fab {
+      position: fixed;
+      right: 1.5rem;
+      bottom: 1.5rem;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: var(--accent);
+      display: grid;
+      place-items: center;
+      box-shadow: 0 15px 35px rgba(56,189,248,.35);
+      cursor: pointer;
+      transition: transform .15s ease, box-shadow .15s ease;
+    }
+
+    .fab:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 20px 45px rgba(56,189,248,.45);
+    }
+
+    .fab svg {
+      width: 26px;
+      height: 26px;
+      stroke: #020617;
     }
   </style>
 </head>
 
 <body>
 
-<header>🟦 Bakhresa Feed</header>
+<header>
+  <span>Bakhresa</span>
+</header>
 
 <main id="feed">
-  <div class="empty">Loading…</div>
+  <div class="empty">Loading feed…</div>
 </main>
+
+<!-- Floating Add Post Button -->
+<a class="fab" href="add-post.html" aria-label="Add post">
+  <svg fill="none" viewBox="0 0 24 24" stroke-width="2">
+    <path stroke-linecap="round" stroke-linejoin="round"
+      d="M12 4v16m8-8H4" />
+  </svg>
+</a>
 
 <script>
   const supabase = window.supabase.createClient(
@@ -105,8 +179,13 @@
     const feed = document.getElementById("feed");
     feed.innerHTML = "";
 
-    if (error || data.length === 0) {
-      feed.innerHTML = `<div class="empty">No posts yet</div>`;
+    if (error || !data || data.length === 0) {
+      feed.innerHTML = `
+        <div class="empty">
+          No posts yet.<br />
+          Be the first to say something.
+        </div>
+      `;
       return;
     }
 
@@ -117,12 +196,22 @@
 
       div.innerHTML = `
         <div class="post-header">
-          <img class="avatar" src="${p.avatar_url || ''}" />
+          <a href="user-details.html?username=${p.username}" class="user-link">
+            <img class="avatar"
+              src="${p.avatar_url || 'https://api.dicebear.com/7.x/identicon/svg?seed=' + (p.username || 'user')}">
+          </a>
+
           <div>
-            <div class="username">@${p.username || 'unknown'}</div>
-            <div class="time">${new Date(post.created_at).toLocaleString()}</div>
+            <a href="user-details.html?username=${p.username}"
+               class="user-link username">
+              @${p.username || 'unknown'}
+            </a>
+            <div class="time">
+              ${new Date(post.created_at).toLocaleString()}
+            </div>
           </div>
         </div>
+
         <div class="content">${post.content}</div>
       `;
 
