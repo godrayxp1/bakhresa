@@ -3,16 +3,18 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Bakhresa — Welcome</title>
+  <title>Bakhresa — Connect Simply</title>
 
-  <!-- Styling -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
   <style>
     :root {
       --bg: #020617;
-      --card: #020617;
+      --panel: #020617;
       --text: #e5e7eb;
       --muted: #94a3b8;
       --accent: #38bdf8;
+      --border: #1e293b;
     }
 
     * {
@@ -23,8 +25,10 @@
     body {
       margin: 0;
       min-height: 100vh;
-      background: linear-gradient(135deg, #020617, #0f172a);
+      background: radial-gradient(circle at top, #020617, #000);
       color: var(--text);
+      display: flex;
+      flex-direction: column;
     }
 
     header {
@@ -35,163 +39,143 @@
     }
 
     .logo {
-      font-size: 1.4rem;
       font-weight: 700;
-    }
-
-    button {
-      background: transparent;
-      border: 1px solid var(--accent);
-      color: var(--accent);
-      padding: 0.7rem 1.2rem;
-      border-radius: 10px;
-      cursor: pointer;
-      font-weight: 600;
-    }
-
-    button:hover {
-      background: rgba(56, 189, 248, 0.1);
+      font-size: 1.2rem;
+      letter-spacing: 0.5px;
     }
 
     main {
+      flex: 1;
       display: grid;
       place-items: center;
-      padding: 4rem 1rem;
+      padding: 2rem;
     }
 
     .card {
-      background: #020617;
-      border-radius: 18px;
-      max-width: 520px;
       width: 100%;
+      max-width: 520px;
+      background: linear-gradient(180deg, #020617, #020617);
+      border: 1px solid var(--border);
+      border-radius: 20px;
       padding: 2.5rem;
+      box-shadow: 0 40px 80px rgba(0,0,0,.6);
       text-align: center;
-      box-shadow: 0 20px 50px rgba(0,0,0,.45);
     }
 
     h1 {
-      font-size: 2.2rem;
+      font-size: 2.4rem;
       margin-bottom: 1rem;
+      letter-spacing: -0.5px;
     }
 
     p {
       color: var(--muted);
-      line-height: 1.6;
+      line-height: 1.7;
+      font-size: 1.05rem;
     }
 
-    .actions {
+    .cta {
       margin-top: 2rem;
     }
 
-    .user-box {
-      margin-top: 2rem;
-      padding: 1rem;
-      border: 1px dashed #334155;
+    button {
+      background: var(--accent);
+      color: #020617;
+      border: none;
+      padding: 0.9rem 1.4rem;
       border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform .15s ease, box-shadow .15s ease;
+      width: 100%;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 25px rgba(56,189,248,.25);
+    }
+
+    .status {
+      margin-top: 1.8rem;
+      font-size: .95rem;
+      color: var(--muted);
       display: none;
-      text-align: left;
-      font-size: 0.95rem;
     }
 
     footer {
       text-align: center;
-      padding: 2rem;
+      padding: 1.5rem;
+      font-size: .85rem;
       color: var(--muted);
-      font-size: 0.9rem;
     }
   </style>
-
-  <!-- Supabase CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 
 <body>
 
-  <header>
-    <div class="logo">Bakhresa</div>
-    <button id="logoutBtn" style="display:none;">Logout</button>
-  </header>
+<header>
+  <div class="logo">Bakhresa</div>
+</header>
 
-  <main>
-    <div class="card">
-      <h1>Welcome to Bakhresa</h1>
-      <p>
-        A secure, modern platform.  
-        Sign in with GitHub to unlock personalized features.
-      </p>
+<main>
+  <div class="card">
+    <h1>Welcome to Bakhresa</h1>
+    <p>
+      A focused social space.  
+      No noise. No clutter. Just people and ideas.
+    </p>
 
-      <div class="actions">
-        <button id="githubLogin">Continue with GitHub</button>
-      </div>
-
-      <div class="user-box" id="userBox"></div>
+    <div class="cta">
+      <button id="login">Continue with GitHub</button>
     </div>
-  </main>
 
-  <footer>
-    © 2025 Bakhresa • Auth powered by Supabase
-  </footer>
+    <div class="status" id="status"></div>
+  </div>
+</main>
 
-  <script>
-    /* ==============================
-       SUPABASE CONFIG (FINAL)
-    ============================== */
-    const supabaseUrl = "https://osaxbfinrlnabjllcfgv.supabase.co";
+<footer>
+  Auth powered by Supabase • © 2025
+</footer>
 
-    const supabaseAnonKey =
-      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9zYXhiZmlucmxuYWJqbGxjZmd2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU1MDY4OTEsImV4cCI6MjA4MTA4Mjg5MX0.qiQzxhYAgd3S_PZUBrT0eYsMfPgSRqP9j7LQq1h4iQE";
+<script>
+  const supabase = supabaseJs.createClient(
+    "https://osaxbfinrlnabjllcfgv.supabase.co",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9zYXhiZmlucmxuYWJqbGxjZmd2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU1MDY4OTEsImV4cCI6MjA4MTA4Mjg5MX0.qiQzxhYAgd3S_PZUBrT0eYsMfPgSRqP9j7LQq1h4iQE"
+  );
 
-    const supabase = window.supabase.createClient(
-      supabaseUrl,
-      supabaseAnonKey
-    );
+  const status = document.getElementById("status");
 
-    const loginBtn = document.getElementById("githubLogin");
-    const logoutBtn = document.getElementById("logoutBtn");
-    const userBox = document.getElementById("userBox");
+  document.getElementById("login").onclick = async () => {
+    status.style.display = "block";
+    status.textContent = "Redirecting to GitHub…";
 
-    /* ==============================
-       LOGIN
-    ============================== */
-    loginBtn.addEventListener("click", async () => {
-      await supabase.auth.signInWithOAuth({
-        provider: "github",
-        options: {
-          redirectTo: window.location.href
-        }
-      });
+    await supabase.auth.signInWithOAuth({
+      provider: "github",
+      options: { redirectTo: location.href }
+    });
+  };
+
+  async function boot() {
+    const { data } = await supabase.auth.getUser();
+    if (!data.user) return;
+
+    status.style.display = "block";
+    status.textContent = `Welcome back, @${data.user.user_metadata.user_name}. Redirecting…`;
+
+    await supabase.from("profiles").upsert({
+      id: data.user.id,
+      username: data.user.user_metadata.user_name,
+      avatar_url: data.user.user_metadata.avatar_url
     });
 
-    /* ==============================
-       LOGOUT
-    ============================== */
-    logoutBtn.addEventListener("click", async () => {
-      await supabase.auth.signOut();
-      location.reload();
-    });
+    setTimeout(() => {
+      location.href = "feed.html";
+    }, 1200);
+  }
 
-    /* ==============================
-       LOAD USER SESSION
-    ============================== */
-    async function loadUser() {
-      const { data } = await supabase.auth.getUser();
-
-      if (data.user) {
-        loginBtn.style.display = "none";
-        logoutBtn.style.display = "inline-block";
-        userBox.style.display = "block";
-
-        userBox.innerHTML = `
-          <strong>Authenticated</strong><br><br>
-          GitHub Username: <b>${data.user.user_metadata.user_name}</b><br>
-          Email: ${data.user.email ?? "private"}<br>
-          User ID: ${data.user.id}
-        `;
-      }
-    }
-
-    loadUser();
-  </script>
+  boot();
+</script>
 
 </body>
 </html>
