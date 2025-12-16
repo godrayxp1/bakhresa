@@ -3,14 +3,15 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Bakhresa — Connect Simply</title>
+  <title>Bakhresa — Welcome</title>
 
+  <!-- Supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <style>
     :root {
       --bg: #020617;
-      --panel: #020617;
+      --card: #020617;
       --text: #e5e7eb;
       --muted: #94a3b8;
       --accent: #38bdf8;
@@ -25,23 +26,16 @@
     body {
       margin: 0;
       min-height: 100vh;
-      background: radial-gradient(circle at top, #020617, #000);
+      background: linear-gradient(135deg, #020617, #0f172a);
       color: var(--text);
       display: flex;
       flex-direction: column;
     }
 
     header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
       padding: 1.5rem 2rem;
-    }
-
-    .logo {
       font-weight: 700;
       font-size: 1.2rem;
-      letter-spacing: 0.5px;
     }
 
     main {
@@ -52,20 +46,19 @@
     }
 
     .card {
-      width: 100%;
       max-width: 520px;
-      background: linear-gradient(180deg, #020617, #020617);
+      width: 100%;
+      background: var(--card);
       border: 1px solid var(--border);
       border-radius: 20px;
       padding: 2.5rem;
-      box-shadow: 0 40px 80px rgba(0,0,0,.6);
       text-align: center;
+      box-shadow: 0 30px 60px rgba(0,0,0,.6);
     }
 
     h1 {
-      font-size: 2.4rem;
+      font-size: 2.3rem;
       margin-bottom: 1rem;
-      letter-spacing: -0.5px;
     }
 
     p {
@@ -74,21 +67,18 @@
       font-size: 1.05rem;
     }
 
-    .cta {
-      margin-top: 2rem;
-    }
-
     button {
+      margin-top: 2rem;
+      width: 100%;
       background: var(--accent);
       color: #020617;
       border: none;
-      padding: 0.9rem 1.4rem;
+      padding: 0.9rem 1.2rem;
       border-radius: 12px;
       font-size: 1rem;
       font-weight: 600;
       cursor: pointer;
       transition: transform .15s ease, box-shadow .15s ease;
-      width: 100%;
     }
 
     button:hover {
@@ -97,8 +87,8 @@
     }
 
     .status {
-      margin-top: 1.8rem;
-      font-size: .95rem;
+      margin-top: 1.5rem;
+      font-size: 0.95rem;
       color: var(--muted);
       display: none;
     }
@@ -106,7 +96,7 @@
     footer {
       text-align: center;
       padding: 1.5rem;
-      font-size: .85rem;
+      font-size: 0.85rem;
       color: var(--muted);
     }
   </style>
@@ -114,23 +104,18 @@
 
 <body>
 
-<header>
-  <div class="logo">Bakhresa</div>
-</header>
+<header>Bakhresa</header>
 
 <main>
   <div class="card">
     <h1>Welcome to Bakhresa</h1>
     <p>
-      A focused social space.  
-      No noise. No clutter. Just people and ideas.
+      A calm social space built for real conversations.  
+      Sign in once. Stay connected.
     </p>
 
-    <div class="cta">
-      <button id="login">Continue with GitHub</button>
-    </div>
-
-    <div class="status" id="status"></div>
+    <button id="loginBtn">Continue with GitHub</button>
+    <div class="status" id="statusText"></div>
   </div>
 </main>
 
@@ -139,42 +124,49 @@
 </footer>
 
 <script>
+  /* ==============================
+     SUPABASE CONFIG (UNCHANGED)
+  ============================== */
   const supabase = supabaseJs.createClient(
     "https://osaxbfinrlnabjllcfgv.supabase.co",
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9zYXhiZmlucmxuYWJqbGxjZmd2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU1MDY4OTEsImV4cCI6MjA4MTA4Mjg5MX0.qiQzxhYAgd3S_PZUBrT0eYsMfPgSRqP9j7LQq1h4iQE"
   );
 
-  const status = document.getElementById("status");
+  const loginBtn = document.getElementById("loginBtn");
+  const statusText = document.getElementById("statusText");
 
-  document.getElementById("login").onclick = async () => {
-    status.style.display = "block";
-    status.textContent = "Redirecting to GitHub…";
+  /* ==============================
+     LOGIN (SAME LOGIC)
+  ============================== */
+  loginBtn.addEventListener("click", async () => {
+    statusText.style.display = "block";
+    statusText.textContent = "Redirecting to GitHub…";
 
     await supabase.auth.signInWithOAuth({
       provider: "github",
-      options: { redirectTo: location.href }
+      options: {
+        redirectTo: window.location.href
+      }
     });
-  };
+  });
 
-  async function boot() {
+  /* ==============================
+     SESSION CHECK (NO DOUBLE LOGIN)
+  ============================== */
+  async function checkSession() {
     const { data } = await supabase.auth.getUser();
-    if (!data.user) return;
 
-    status.style.display = "block";
-    status.textContent = `Welcome back, @${data.user.user_metadata.user_name}. Redirecting…`;
+    if (data.user) {
+      statusText.style.display = "block";
+      statusText.textContent = "Signed in. Redirecting to feed…";
 
-    await supabase.from("profiles").upsert({
-      id: data.user.id,
-      username: data.user.user_metadata.user_name,
-      avatar_url: data.user.user_metadata.avatar_url
-    });
-
-    setTimeout(() => {
-      location.href = "feed.html";
-    }, 1200);
+      setTimeout(() => {
+        window.location.href = "feed.html";
+      }, 800);
+    }
   }
 
-  boot();
+  checkSession();
 </script>
 
 </body>
