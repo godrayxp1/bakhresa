@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Bakhresa — Users</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: system-ui, sans-serif;
+      background: #020617;
+      color: #e5e7eb;
+      padding: 2rem;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 1.2rem;
+      max-width: 1100px;
+      margin: auto;
+    }
+
+    .card {
+      background: #020617;
+      border: 1px solid #334155;
+      border-radius: 16px;
+      padding: 1.2rem;
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+    }
+
+    .avatar {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      object-fit: cover;
+      background: #0f172a;
+    }
+
+    .info {
+      flex: 1;
+    }
+
+    .username {
+      font-weight: 700;
+      font-size: 1rem;
+    }
+
+    .name {
+      font-size: 0.9rem;
+      color: #94a3b8;
+    }
+
+    .status {
+      font-size: 0.85rem;
+      color: #22c55e;
+      margin-top: 0.2rem;
+    }
+
+    a {
+      display: block;
+      text-align: center;
+      margin-top: 2rem;
+      color: #38bdf8;
+      text-decoration: none;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h1>Users on Bakhresa</h1>
+
+  <div class="grid" id="usersGrid"></div>
+
+  <a href="./index.html">← Back to Home</a>
+
+  <script>
+    const supabaseUrl = "https://osaxbfinrlnabjllcfgv.supabase.co";
+    const supabaseAnonKey =
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9zYXhiZmlucmxuYWJqbGxjZmd2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU1MDY4OTEsImV4cCI6MjA4MTA4Mjg5MX0.qiQzxhYAgd3S_PZUBrT0eYsMfPgSRqP9j7LQq1h4iQE";
+
+    const supabase = window.supabase.createClient(
+      supabaseUrl,
+      supabaseAnonKey
+    );
+
+    async function loadUsers() {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("username, full_name, avatar_url, status")
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error(error);
+        return;
+      }
+
+      const grid = document.getElementById("usersGrid");
+
+      data.forEach(user => {
+        const card = document.createElement("div");
+        card.className = "card";
+
+        card.innerHTML = `
+          <img class="avatar" src="${user.avatar_url || 'https://avatars.githubusercontent.com/u/0'}" />
+          <div class="info">
+            <div class="username">@${user.username}</div>
+            <div class="name">${user.full_name || ""}</div>
+            <div class="status">${user.status || ""}</div>
+          </div>
+        `;
+
+        grid.appendChild(card);
+      });
+    }
+
+    loadUsers();
+  </script>
+
+</body>
+</html>
