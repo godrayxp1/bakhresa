@@ -5,10 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Bakhresa — Feed</title>
 
-  <!-- Supabase CDN -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <style>
+    /* [All previous styles remain the same until .post-header] */
+
     :root {
       --bg: #020617;
       --card: #0f172a;
@@ -18,181 +19,79 @@
       --border: #1e293b;
     }
 
-    * {
-      box-sizing: border-box;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-    }
+    * { box-sizing: border-box; font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif; }
 
-    body {
-      margin: 0;
-      min-height: 100vh;
-      background: linear-gradient(135deg, #020617, #0f172a);
-      color: var(--text);
-    }
+    body { margin: 0; min-height: 100vh; background: linear-gradient(135deg, #020617, #0f172a); color: var(--text); }
 
     header {
-      padding: 1.5rem 2rem;
-      font-weight: 700;
-      font-size: 1.2rem;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+      padding: 1.5rem 2rem; font-weight: 700; font-size: 1.2rem; border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
     }
 
-    .signout {
-      background: transparent;
-      border: 1px solid var(--border);
-      color: var(--muted);
-      padding: 0.5rem 1rem;
-      border-radius: 8px;
-      font-size: 0.9rem;
-      cursor: pointer;
-    }
+    .signout { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.9rem; cursor: pointer; }
+    .signout:hover { background: var(--border); }
 
-    .signout:hover {
-      background: var(--border);
-    }
+    main { max-width: 680px; margin: 2rem auto; padding: 0 1rem; }
 
-    main {
-      max-width: 680px;
-      margin: 2rem auto;
-      padding: 0 1rem;
-    }
-
-    /* Minimized composer */
     .composer {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 1rem;
-      margin-bottom: 2rem;
+      background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 1rem; margin-bottom: 2rem;
     }
 
     textarea {
-      width: 100%;
-      background: transparent;
-      border: none;
-      color: var(--text);
-      font-size: 1rem;
-      resize: none;
-      outline: none;
-      min-height: 60px;
-      max-height: 200px;
-      transition: min-height 0.2s ease;
+      width: 100%; background: transparent; border: none; color: var(--text); font-size: 1rem; resize: none; outline: none;
+      min-height: 60px; max-height: 200px; transition: min-height 0.2s ease;
     }
 
-    textarea:focus {
-      min-height: 100px;
-    }
+    textarea:focus { min-height: 100px; }
+    textarea::placeholder { color: var(--muted); }
 
-    textarea::placeholder {
-      color: var(--muted);
-    }
-
-    .composer-footer {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-top: 0.8rem;
-    }
-
-    .char-count {
-      color: var(--muted);
-      font-size: 0.85rem;
-    }
+    .composer-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 0.8rem; }
+    .char-count { color: var(--muted); font-size: 0.85rem; }
 
     .post-btn {
-      background: var(--accent);
-      color: #020617;
-      border: none;
-      padding: 0.5rem 1rem;
-      border-radius: 8px;
-      font-weight: 600;
-      font-size: 0.9rem;
-      cursor: pointer;
-      opacity: 0.6;
+      background: var(--accent); color: #020617; border: none; padding: 0.5rem 1rem; border-radius: 8px;
+      font-weight: 600; font-size: 0.9rem; cursor: pointer; opacity: 0.6;
     }
+    .post-btn.active { opacity: 1; }
 
-    .post-btn.active {
-      opacity: 1;
-      cursor: pointer;
-    }
-
-    .post-btn:disabled {
-      cursor: not-allowed;
-    }
-
-    .posts {
-      display: flex;
-      flex-direction: column;
-      gap: 1.5rem;
-    }
+    .posts { display: flex; flex-direction: column; gap: 1.5rem; }
 
     .post {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 1.5rem;
+      background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem;
     }
 
     .post-header {
-      display: flex;
-      align-items: center;
-      gap: 0.8rem;
-      margin-bottom: 0.8rem;
+      display: flex; align-items: center; gap: 0.8rem; margin-bottom: 0.8rem;
     }
 
     .avatar {
-      width: 42px;
-      height: 42px;
-      border-radius: 50%;
-      object-fit: cover;
-      background: var(--border);
+      width: 42px; height: 42px; border-radius: 50%; object-fit: cover; cursor: pointer;
     }
 
     .avatar.fallback {
-      background: var(--accent);
-      display: grid;
-      place-items: center;
-      font-weight: bold;
-      font-size: 1.1rem;
-      color: #020617;
+      background: var(--accent); display: grid; place-items: center; font-weight: bold;
+      font-size: 1.1rem; color: #020617; cursor: pointer;
     }
 
     .username {
-      font-weight: 600;
+      font-weight: 600; cursor: pointer;
     }
 
-    .timestamp {
-      color: var(--muted);
-      font-size: 0.85rem;
-    }
+    .username:hover { color: var(--accent); }
+
+    .timestamp { color: var(--muted); font-size: 0.85rem; }
 
     .post-content {
-      line-height: 1.6;
-      font-size: 1.05rem;
-      margin-top: 0.5rem;
-      white-space: pre-wrap;
+      line-height: 1.6; font-size: 1.05rem; margin-top: 0.5rem; white-space: pre-wrap;
     }
 
-    .status {
-      text-align: center;
-      padding: 2rem;
-      color: var(--muted);
-    }
+    .status { text-align: center; padding: 2rem; color: var(--muted); }
 
-    footer {
-      text-align: center;
-      padding: 2rem;
-      font-size: 0.85rem;
-      color: var(--muted);
-    }
+    footer { text-align: center; padding: 2rem; font-size: 0.85rem; color: var(--muted); }
   </style>
 </head>
 
 <body>
-
 <header>
   <span>Bakhresa</span>
   <button id="signoutBtn" class="signout">Sign out</button>
@@ -211,166 +110,140 @@
   <div id="status" class="status">Loading posts...</div>
 </main>
 
-<footer>
-  Auth powered by Supabase • © 2025–2026
-</footer>
+<footer>Auth powered by Supabase • © 2025–2026</footer>
 
 <script>
-  /* ==============================
-     SUPABASE CONFIG
-  ============================== */
   const supabase = window.supabase.createClient(
     "https://osaxbfinrlnabjllcfgv.supabase.co",
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9zYXhiZmlucmxuYWJqbGxjZmd2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU1MDY4OTEsImV4cCI6MjA4MTA4Mjg5MX0.qiQzxhYAgd3S_PZUBrT0eYsMfPgSRqP9j7LQq1h4iQE"
   );
 
+  let currentUser = null;
+  let currentUsername = null;
+  let currentAvatarUrl = null;
+
+  // Auth + redirect if not logged in
+  supabase.auth.onAuthStateChange((_, session) => {
+    if (!session) window.location.href = "index.html";
+    else init(session.user);
+  });
+
+  supabase.auth.getSession().then(({ data }) => {
+    if (!data.session) window.location.href = "index.html";
+    else init(data.session.user);
+  });
+
+  function init(user) {
+    currentUser = user;
+    currentAvatarUrl = user.user_metadata.avatar_url;
+    currentUsername = user.user_metadata.preferred_username || user.user_metadata.login || user.email.split('@')[0];
+    loadPosts();
+  }
+
+  // Composer logic (unchanged)
   const postInput = document.getElementById("postInput");
   const postBtn = document.getElementById("postBtn");
   const charCount = document.getElementById("charCount");
-  const postsContainer = document.getElementById("postsContainer");
-  const status = document.getElementById("status");
-  const signoutBtn = document.getElementById("signoutBtn");
 
-  let currentUser = null;
-  let currentAvatarUrl = null;
-  let currentUsername = null;
-
-  /* ==============================
-     AUTH STATE & REDIRECT IF NOT LOGGED IN
-  ============================== */
-  supabase.auth.onAuthStateChange((event, session) => {
-    if (!session) {
-      window.location.href = "index.html";
-      return;
-    }
-    currentUser = session.user;
-    currentAvatarUrl = session.user.user_metadata.avatar_url || null;
-    currentUsername = session.user.user_metadata.preferred_username || session.user.user_metadata.login || session.user.email.split('@')[0];
-    loadPosts();
-  });
-
-  supabase.auth.getSession().then(({ data: { session } }) => {
-    if (!session) {
-      window.location.href = "index.html";
-    } else {
-      currentUser = session.user;
-      currentAvatarUrl = session.user.user_metadata.avatar_url || null;
-      currentUsername = session.user.user_metadata.preferred_username || session.user.user_metadata.login || session.user.email.split('@')[0];
-      loadPosts();
-    }
-  });
-
-  /* ==============================
-     POST COMPOSER
-  ============================== */
   postInput.addEventListener("input", () => {
-    const length = postInput.value.length;
-    charCount.textContent = `${length} / 500`;
-    const isValid = length > 0 && length <= 500;
-    postBtn.disabled = !isValid;
-    postBtn.classList.toggle("active", isValid);
+    const len = postInput.value.length;
+    charCount.textContent = `${len} / 500`;
+    const valid = len > 0 && len <= 500;
+    postBtn.disabled = !valid;
+    postBtn.classList.toggle("active", valid);
   });
 
   postBtn.addEventListener("click", async () => {
     const content = postInput.value.trim();
-    if (!content || content.length > 500) return;
+    if (!content) return;
 
     postBtn.disabled = true;
     postBtn.textContent = "Posting...";
 
-    const { error } = await supabase
-      .from("posts")
-      .insert({ content, user_id: currentUser.id });
+    const { error } = await supabase.from("posts").insert({ content, user_id: currentUser.id });
 
-    if (error) {
-      alert("Error posting: " + error.message);
-    } else {
+    if (error) alert("Error: " + error.message);
+    else {
       postInput.value = "";
       postInput.dispatchEvent(new Event("input"));
-      loadPosts(); // Reload to include the new post at the top
+      loadPosts();
     }
-
     postBtn.textContent = "Post";
     postBtn.disabled = false;
   });
 
-  /* ==============================
-     LOAD & RENDER POSTS
-  ============================== */
+  // Load and render posts
   async function loadPosts() {
-    status.textContent = "Loading posts...";
-
     const { data: posts, error } = await supabase
       .from("posts")
       .select("id, content, created_at, user_id")
       .order("created_at", { ascending: false });
 
     if (error) {
-      status.textContent = "Error loading posts: " + error.message;
+      document.getElementById("status").textContent = "Error loading posts";
       return;
     }
 
-    postsContainer.innerHTML = "";
-    if (posts.length === 0) {
-      status.textContent = "No posts yet. Be the first to share something!";
+    const container = document.getElementById("postsContainer");
+    container.innerHTML = "";
+    document.getElementById("status").style.display = posts.length ? "none" : "block";
+
+    if (!posts.length) {
+      document.getElementById("status").textContent = "No posts yet. Be the first!";
       return;
     }
 
-    status.style.display = "none";
-
-    // Fetch all unique user_ids for profiles (batch efficiently)
-    const userIds = [...new Set(posts.map(p => p.user_id))];
-    let profilesMap = {};
-    if (userIds.length > 0) {
-      const { data: profiles } = await supabase.auth.admin.listUsers(); // Note: This requires service_role key — alternative below
-      // Better client-side approach: Since we can't list all users easily, we'll rely on metadata from session or fallback
-      // For simplicity, we'll use GitHub metadata fallback per post (but since we don't have per-user session, use fallback)
-      // Actually, for public posts, best is to add a profiles table and sync on sign-up (recommended for production)
-      // Here: Use fallback avatar/username as before, but prioritize real avatar if available (for current user at least)
-    }
+    // Fetch profiles if they exist (optional)
+    let profiles = {};
+    try {
+      const { data } = await supabase.from("profiles").select("id, username, avatar_url");
+      data.forEach(p => profiles[p.id] = p);
+    } catch (_) {}
 
     posts.forEach(post => {
-      const isCurrentUser = post.user_id === currentUser.id;
-      const avatarUrl = isCurrentUser ? currentAvatarUrl : null; // Only we know our own avatar reliably client-side
-      const username = isCurrentUser ? currentUsername : post.user_id.slice(0, 8);
+      const isMe = post.user_id === currentUser.id;
+      const profile = profiles[post.user_id];
+
+      const username = profile?.username || (isMe ? currentUsername : post.user_id.slice(0,8));
+      const avatarUrl = profile?.avatar_url || (isMe ? currentAvatarUrl : null);
 
       const postEl = document.createElement("div");
       postEl.className = "post";
 
       const timeAgo = timeSince(new Date(post.created_at));
 
-      let avatarHtml = avatarUrl 
-        ? `<img src="${avatarUrl}" alt="Avatar" class="avatar" onerror="this.onerror=null; this.outerHTML='<div class=avatar fallback>${username[0].toUpperCase()}</div>'">`
+      const avatarHtml = avatarUrl
+        ? `<img src="${avatarUrl}" class="avatar" alt="${username}" onerror="this.style.display='none'; this.nextElementSibling.style.display='grid'">`
+        + `<div class="avatar fallback" style="display:none">${username[0].toUpperCase()}</div>`
         : `<div class="avatar fallback">${username[0].toUpperCase()}</div>`;
 
       postEl.innerHTML = `
         <div class="post-header">
-          ${avatarHtml}
+          <a href="user-details.html?username=${encodeURIComponent(username)}">
+            ${avatarHtml}
+          </a>
           <div>
-            <div class="username">${escapeHtml(username)}</div>
+            <a href="user-details.html?username=${encodeURIComponent(username)}" style="text-decoration:none; color:inherit;">
+              <div class="username">@${username}</div>
+            </a>
             <div class="timestamp">${timeAgo}</div>
           </div>
         </div>
         <div class="post-content">${escapeHtml(post.content)}</div>
       `;
 
-      postsContainer.appendChild(postEl);
+      container.appendChild(postEl);
     });
   }
 
   function timeSince(date) {
-    const seconds = Math.floor((new Date() - date) / 1000);
-    let interval = seconds / 31536000;
-    if (interval > 1) return Math.floor(interval) + "y";
-    interval = seconds / 2592000;
-    if (interval > 1) return Math.floor(interval) + "mo";
-    interval = seconds / 86400;
-    if (interval > 1) return Math.floor(interval) + "d";
-    interval = seconds / 3600;
-    if (interval > 1) return Math.floor(interval) + "h";
-    interval = seconds / 60;
-    if (interval > 1) return Math.floor(interval) + "m";
-    return Math.floor(seconds) + "s";
+    const s = Math.floor((Date.now() - date) / 1000);
+    if (s < 60) return s + "s";
+    if (s < 3600) return Math.floor(s/60) + "m";
+    if (s < 86400) return Math.floor(s/3600) + "h";
+    if (s < 2592000) return Math.floor(s/86400) + "d";
+    if (s < 31536000) return Math.floor(s/2592000) + "mo";
+    return Math.floor(s/31536000) + "y";
   }
 
   function escapeHtml(text) {
@@ -379,14 +252,10 @@
     return div.innerHTML;
   }
 
-  /* ==============================
-     SIGN OUT
-  ============================== */
-  signoutBtn.addEventListener("click", async () => {
+  document.getElementById("signoutBtn").addEventListener("click", async () => {
     await supabase.auth.signOut();
     window.location.href = "index.html";
   });
 </script>
-
 </body>
 </html>
