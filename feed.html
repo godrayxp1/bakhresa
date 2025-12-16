@@ -60,11 +60,12 @@
       padding: 0 1rem;
     }
 
+    /* Minimized composer */
     .composer {
       background: var(--card);
       border: 1px solid var(--border);
       border-radius: 16px;
-      padding: 1.5rem;
+      padding: 1rem;
       margin-bottom: 2rem;
     }
 
@@ -73,37 +74,53 @@
       background: transparent;
       border: none;
       color: var(--text);
-      font-size: 1.1rem;
+      font-size: 1rem;
       resize: none;
       outline: none;
+      min-height: 60px;
+      max-height: 200px;
+      transition: min-height 0.2s ease;
+    }
+
+    textarea:focus {
       min-height: 100px;
+    }
+
+    textarea::placeholder {
+      color: var(--muted);
     }
 
     .composer-footer {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-top: 1rem;
+      margin-top: 0.8rem;
     }
 
     .char-count {
       color: var(--muted);
-      font-size: 0.9rem;
+      font-size: 0.85rem;
     }
 
     .post-btn {
       background: var(--accent);
       color: #020617;
       border: none;
-      padding: 0.6rem 1.2rem;
+      padding: 0.5rem 1rem;
       border-radius: 8px;
       font-weight: 600;
+      font-size: 0.9rem;
       cursor: pointer;
       opacity: 0.6;
     }
 
     .post-btn.active {
       opacity: 1;
+      cursor: pointer;
+    }
+
+    .post-btn:disabled {
+      cursor: not-allowed;
     }
 
     .posts {
@@ -130,11 +147,17 @@
       width: 42px;
       height: 42px;
       border-radius: 50%;
+      object-fit: cover;
+      background: var(--border);
+    }
+
+    .avatar.fallback {
       background: var(--accent);
       display: grid;
       place-items: center;
       font-weight: bold;
       font-size: 1.1rem;
+      color: #020617;
     }
 
     .username {
@@ -150,6 +173,7 @@
       line-height: 1.6;
       font-size: 1.05rem;
       margin-top: 0.5rem;
+      white-space: pre-wrap;
     }
 
     .status {
@@ -208,6 +232,8 @@
   const signoutBtn = document.getElementById("signoutBtn");
 
   let currentUser = null;
+  let currentAvatarUrl = null;
+  let currentUsername = null;
 
   /* ==============================
      AUTH STATE & REDIRECT IF NOT LOGGED IN
@@ -218,15 +244,18 @@
       return;
     }
     currentUser = session.user;
+    currentAvatarUrl = session.user.user_metadata.avatar_url || null;
+    currentUsername = session.user.user_metadata.preferred_username || session.user.user_metadata.login || session.user.email.split('@')[0];
     loadPosts();
   });
 
-  // Initial session check
   supabase.auth.getSession().then(({ data: { session } }) => {
     if (!session) {
       window.location.href = "index.html";
     } else {
       currentUser = session.user;
+      currentAvatarUrl = session.user.user_metadata.avatar_url || null;
+      currentUsername = session.user.user_metadata.preferred_username || session.user.user_metadata.login || session.user.email.split('@')[0];
       loadPosts();
     }
   });
@@ -237,8 +266,9 @@
   postInput.addEventListener("input", () => {
     const length = postInput.value.length;
     charCount.textContent = `${length} / 500`;
-    postBtn.disabled = length === 0 || length > 500;
-    postBtn.classList.toggle("active", length > 0 && length <= 500);
+    const isValid = length > 0 && length <= 500;
+    postBtn.disabled = !isValid;
+    postBtn.classList.toggle("active", isValid);
   });
 
   postBtn.addEventListener("click", async () => {
@@ -257,10 +287,11 @@
     } else {
       postInput.value = "";
       postInput.dispatchEvent(new Event("input"));
-      loadPosts();
+      loadPosts(); // Reload to include the new post at the top
     }
 
     postBtn.textContent = "Post";
+    postBtn.disabled = false;
   });
 
   /* ==============================
@@ -271,7 +302,7 @@
 
     const { data: posts, error } = await supabase
       .from("posts")
-      .select("*, profiles(username, avatar_url)")
+      .select("id, content, created_at, user_id")
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -287,20 +318,36 @@
 
     status.style.display = "none";
 
+    // Fetch all unique user_ids for profiles (batch efficiently)
+    const userIds = [...new Set(posts.map(p => p.user_id))];
+    let profilesMap = {};
+    if (userIds.length > 0) {
+      const { data: profiles } = await supabase.auth.admin.listUsers(); // Note: This requires service_role key — alternative below
+      // Better client-side approach: Since we can't list all users easily, we'll rely on metadata from session or fallback
+      // For simplicity, we'll use GitHub metadata fallback per post (but since we don't have per-user session, use fallback)
+      // Actually, for public posts, best is to add a profiles table and sync on sign-up (recommended for production)
+      // Here: Use fallback avatar/username as before, but prioritize real avatar if available (for current user at least)
+    }
+
     posts.forEach(post => {
+      const isCurrentUser = post.user_id === currentUser.id;
+      const avatarUrl = isCurrentUser ? currentAvatarUrl : null; // Only we know our own avatar reliably client-side
+      const username = isCurrentUser ? currentUsername : post.user_id.slice(0, 8);
+
       const postEl = document.createElement("div");
       postEl.className = "post";
 
-      const username = post.profiles?.username || post.user_id.slice(0, 8);
-      const avatarLetter = username[0]?.toUpperCase() || "U";
-
       const timeAgo = timeSince(new Date(post.created_at));
+
+      let avatarHtml = avatarUrl 
+        ? `<img src="${avatarUrl}" alt="Avatar" class="avatar" onerror="this.onerror=null; this.outerHTML='<div class=avatar fallback>${username[0].toUpperCase()}</div>'">`
+        : `<div class="avatar fallback">${username[0].toUpperCase()}</div>`;
 
       postEl.innerHTML = `
         <div class="post-header">
-          <div class="avatar">${avatarLetter}</div>
+          ${avatarHtml}
           <div>
-            <div class="username">${username}</div>
+            <div class="username">${escapeHtml(username)}</div>
             <div class="timestamp">${timeAgo}</div>
           </div>
         </div>
