@@ -2,20 +2,18 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Bakhresa — Welcome</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Bakhresa • Feed</title>
 
-  <!-- Supabase CDN -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <style>
     :root {
       --bg: #020617;
-      --card: #020617;
+      --border: #1e293b;
       --text: #e5e7eb;
       --muted: #94a3b8;
       --accent: #38bdf8;
-      --border: #1e293b;
     }
 
     * {
@@ -25,79 +23,100 @@
 
     body {
       margin: 0;
-      min-height: 100vh;
       background: linear-gradient(135deg, #020617, #0f172a);
       color: var(--text);
-      display: flex;
-      flex-direction: column;
+      min-height: 100vh;
     }
 
     header {
-      padding: 1.5rem 2rem;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: rgba(2,6,23,.85);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border);
+      padding: 1rem 1.5rem;
       font-weight: 700;
-      font-size: 1.2rem;
     }
 
     main {
-      flex: 1;
+      max-width: 640px;
+      margin: auto;
+      padding: 1.2rem;
+    }
+
+    .post {
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1rem;
+      margin-bottom: 1.2rem;
+      background: rgba(2,6,23,.6);
+    }
+
+    .post-header {
+      display: flex;
+      gap: 0.75rem;
+      align-items: center;
+    }
+
+    .avatar {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: #334155;
+      object-fit: cover;
+    }
+
+    .username {
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+
+    .time {
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    .content {
+      margin-top: 0.8rem;
+      font-size: 0.95rem;
+      line-height: 1.5;
+      white-space: pre-wrap;
+    }
+
+    .empty {
+      text-align: center;
+      color: var(--muted);
+      margin-top: 4rem;
+    }
+
+    .user-link {
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .user-link.username:hover {
+      color: var(--accent);
+      text-decoration: underline;
+    }
+
+    .fab {
+      position: fixed;
+      right: 1.5rem;
+      bottom: 1.5rem;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: var(--accent);
       display: grid;
       place-items: center;
-      padding: 2rem;
+      box-shadow: 0 15px 35px rgba(56,189,248,.35);
     }
 
-    .card {
-      max-width: 520px;
-      width: 100%;
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 20px;
-      padding: 2.5rem;
-      text-align: center;
-      box-shadow: 0 30px 60px rgba(0,0,0,.6);
-    }
-
-    h1 {
-      font-size: 2.3rem;
-      margin-bottom: 1rem;
-    }
-
-    p {
-      color: var(--muted);
-      line-height: 1.7;
-      font-size: 1.05rem;
-    }
-
-    button {
-      margin-top: 2rem;
-      width: 100%;
-      background: var(--accent);
-      color: #020617;
-      border: none;
-      padding: 0.9rem 1.2rem;
-      border-radius: 12px;
-      font-size: 1rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: transform .15s ease, box-shadow .15s ease;
-    }
-
-    button:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 12px 25px rgba(56,189,248,.25);
-    }
-
-    .status {
-      margin-top: 1.5rem;
-      font-size: 0.95rem;
-      color: var(--muted);
-      display: none;
-    }
-
-    footer {
-      text-align: center;
-      padding: 1.5rem;
-      font-size: 0.85rem;
-      color: var(--muted);
+    .fab svg {
+      width: 26px;
+      height: 26px;
+      stroke: #020617;
     }
   </style>
 </head>
@@ -106,67 +125,97 @@
 
 <header>Bakhresa</header>
 
-<main>
-  <div class="card">
-    <h1>Welcome to Bakhresa</h1>
-    <p>
-      A calm social space built for real conversations.  
-      Sign in once. Stay connected.
-    </p>
-
-    <button id="loginBtn">Continue with GitHub</button>
-    <div class="status" id="statusText"></div>
-  </div>
+<main id="feed">
+  <div class="empty">Checking session…</div>
 </main>
 
-<footer>
-  Auth powered by Supabase • © 2025
-</footer>
+<a class="fab" href="add-post.html" aria-label="Add post">
+  <svg fill="none" viewBox="0 0 24 24" stroke-width="2">
+    <path stroke-linecap="round" stroke-linejoin="round"
+      d="M12 4v16m8-8H4" />
+  </svg>
+</a>
 
 <script>
-  /* ==============================
-     SUPABASE CONFIG (CORRECT)
-  ============================== */
   const supabase = window.supabase.createClient(
     "https://osaxbfinrlnabjllcfgv.supabase.co",
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9zYXhiZmlucmxuYWJqbGxjZmd2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU1MDY4OTEsImV4cCI6MjA4MTA4Mjg5MX0.qiQzxhYAgd3S_PZUBrT0eYsMfPgSRqP9j7LQq1h4iQE"
   );
 
-  const loginBtn = document.getElementById("loginBtn");
-  const statusText = document.getElementById("statusText");
+  /* ==========================
+     AUTH GUARD
+  ========================== */
+  async function requireAuth() {
+    const { data } = await supabase.auth.getSession();
 
-  /* ==============================
-     LOGIN (NO DOUBLE TRIGGER)
-  ============================== */
-  loginBtn.addEventListener("click", async () => {
-    statusText.style.display = "block";
-    statusText.textContent = "Redirecting to GitHub…";
-
-    await supabase.auth.signInWithOAuth({
-      provider: "github",
-      options: {
-        redirectTo: window.location.href
-      }
-    });
-  });
-
-  /* ==============================
-     SESSION CHECK ON LOAD
-  ============================== */
-  async function checkSession() {
-    const { data } = await supabase.auth.getUser();
-
-    if (data.user) {
-      statusText.style.display = "block";
-      statusText.textContent = "Signed in. Redirecting to feed…";
-
-      setTimeout(() => {
-        window.location.href = "feed.html";
-      }, 800);
+    if (!data.session) {
+      window.location.href = "index.html";
+      return;
     }
+
+    loadFeed();
   }
 
-  checkSession();
+  /* ==========================
+     LOAD FEED
+  ========================== */
+  async function loadFeed() {
+    const { data, error } = await supabase
+      .from("posts")
+      .select(`
+        content,
+        created_at,
+        profiles (
+          username,
+          avatar_url
+        )
+      `)
+      .order("created_at", { ascending: false });
+
+    const feed = document.getElementById("feed");
+    feed.innerHTML = "";
+
+    if (error || !data || data.length === 0) {
+      feed.innerHTML = `
+        <div class="empty">
+          No posts yet.<br />
+          Be the first to post something.
+        </div>
+      `;
+      return;
+    }
+
+    data.forEach(post => {
+      const p = post.profiles || {};
+      const div = document.createElement("div");
+      div.className = "post";
+
+      div.innerHTML = `
+        <div class="post-header">
+          <a href="user-details.html?username=${p.username}" class="user-link">
+            <img class="avatar"
+              src="${p.avatar_url || 'https://api.dicebear.com/7.x/identicon/svg?seed=' + (p.username || 'user')}">
+          </a>
+
+          <div>
+            <a href="user-details.html?username=${p.username}"
+               class="user-link username">
+              @${p.username || 'unknown'}
+            </a>
+            <div class="time">
+              ${new Date(post.created_at).toLocaleString()}
+            </div>
+          </div>
+        </div>
+
+        <div class="content">${post.content}</div>
+      `;
+
+      feed.appendChild(div);
+    });
+  }
+
+  requireAuth();
 </script>
 
 </body>
