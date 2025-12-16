@@ -73,9 +73,9 @@
       background: var(--accent);
       color: #020617;
       border: none;
-      padding: 0.9rem 1.2rem;
+      padding: 1rem 1.2rem;
       border-radius: 12px;
-      font-size: 1rem;
+      font-size: 1.1rem;
       font-weight: 600;
       cursor: pointer;
       transition: transform .15s ease, box-shadow .15s ease;
@@ -86,11 +86,27 @@
       box-shadow: 0 12px 25px rgba(56,189,248,.25);
     }
 
+    button:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+    }
+
     .status {
       margin-top: 1.5rem;
       font-size: 0.95rem;
+      color: var(--accent);
+      min-height: 1.2em;
+    }
+
+    .error {
+      color: #f87171;
+    }
+
+    .signout {
+      margin-top: 1rem;
+      background: transparent;
       color: var(--muted);
-      display: none;
+      font-size: 0.9rem;
     }
 
     footer {
@@ -115,17 +131,19 @@
     </p>
 
     <button id="loginBtn">Continue with GitHub</button>
+    <button id="signoutBtn" class="signout" style="display:none;">Sign out</button>
     <div class="status" id="statusText"></div>
   </div>
 </main>
 
 <footer>
-  Auth powered by Supabase • © 2025
+  Auth powered by Supabase • © 2025–2026
 </footer>
 
 <script>
   /* ==============================
-     SUPABASE CONFIG (CORRECT)
+     SUPABASE CONFIG
+     (Anon key is public and safe to expose in client-side code)
   ============================== */
   const supabase = window.supabase.createClient(
     "https://osaxbfinrlnabjllcfgv.supabase.co",
@@ -133,40 +151,81 @@
   );
 
   const loginBtn = document.getElementById("loginBtn");
+  const signoutBtn = document.getElementById("signoutBtn");
   const statusText = document.getElementById("statusText");
 
-  /* ==============================
-     LOGIN (NO DOUBLE TRIGGER)
-  ============================== */
-  loginBtn.addEventListener("click", async () => {
-    statusText.style.display = "block";
-    statusText.textContent = "Redirecting to GitHub…";
-
-    await supabase.auth.signInWithOAuth({
-      provider: "github",
-      options: {
-        redirectTo: window.location.href
-      }
-    });
-  });
-
-  /* ==============================
-     SESSION CHECK ON LOAD
-  ============================== */
-  async function checkSession() {
-    const { data } = await supabase.auth.getUser();
-
-    if (data.user) {
-      statusText.style.display = "block";
+  function updateUI(session) {
+    if (session?.user) {
+      loginBtn.style.display = "none";
+      signoutBtn.style.display = "block";
       statusText.textContent = "Signed in. Redirecting to feed…";
-
+      statusText.classList.remove("error");
       setTimeout(() => {
         window.location.href = "feed.html";
-      }, 800);
+      }, 1000);
+    } else {
+      loginBtn.style.display = "block";
+      signoutBtn.style.display = "none";
+      statusText.textContent = "";
     }
   }
 
-  checkSession();
+  /* ==============================
+     AUTH STATE LISTENER (RECOMMENDED FOR RELIABILITY)
+  ============================== */
+  supabase.auth.onAuthStateChange((event, session) => {
+    console.log("Auth event:", event);
+    updateUI(session);
+
+    if (event === "SIGNED_IN") {
+      statusText.textContent = "Welcome! Redirecting…";
+    } else if (event === "SIGNED_OUT") {
+      statusText.textContent = "Signed out.";
+    }
+  });
+
+  /* Initial check (in case of refresh during redirect) */
+  supabase.auth.getSession().then(({ data: { session } }) => {
+    updateUI(session);
+  });
+
+  /* ==============================
+     LOGIN
+  ============================== */
+  loginBtn.addEventListener("click", async () => {
+    loginBtn.disabled = true;
+    statusText.textContent = "Redirecting to GitHub…";
+    statusText.classList.remove("error");
+
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "github",
+      options: {
+        redirectTo: window.location.origin + window.location.pathname // Better than href for subpaths
+      }
+    });
+
+    if (error) {
+      statusText.textContent = "Error: " + error.message;
+      statusText.classList.add("error");
+      loginBtn.disabled = false;
+    }
+  });
+
+  /* ==============================
+     SIGN OUT
+  ============================== */
+  signoutBtn.addEventListener("click", async () => {
+    signoutBtn.disabled = true;
+    statusText.textContent = "Signing out…";
+
+    const { error } = await supabase.auth.signOut();
+
+    if (error) {
+      statusText.textContent = "Error signing out: " + error.message;
+      statusText.classList.add("error");
+    }
+    signoutBtn.disabled = false;
+  });
 </script>
 
 </body>
