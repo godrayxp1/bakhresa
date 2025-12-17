@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Real-time Chat</title>
+<style>
+body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  background-color: #f4f4f9;
+}
+#chatBox {
+  width: 90%;
+  max-width: 500px;
+  height: 60%;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  overflow-y: auto;
+  padding: 10px;
+  background-color: #fff;
+  margin-bottom: 10px;
+}
+#messageInput {
+  width: 80%;
+  padding: 8px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+}
+#sendButton {
+  padding: 8px 12px;
+  border: none;
+  border-radius: 4px;
+  background-color: #2a9d8f;
+  color: #fff;
+  cursor: pointer;
+}
+#sendButton:hover {
+  background-color: #267a6b;
+}
+.message {
+  margin: 5px 0;
+  padding: 8px;
+  border-radius: 4px;
+  background-color: #e9ecef;
+}
+.own {
+  background-color: #d1e7dd;
+  align-self: flex-end;
+}
+</style>
+</head>
+<body>
+  <h1>Chat Room</h1>
+  <div id="chatBox"></div>
+  <div>
+    <input type="text" id="messageInput" placeholder="Type your message here..." />
+    <button id="sendButton">Send</button>
+  </div>
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+    // Initialize Supabase client
+    const SUPABASE_URL = 'https://osaxbfinrlnabjllcfgv.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9zYXhiZmlucmxuYWJqbGxjZmd2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU1MDY4OTEsImV4cCI6MjA4MTA4Mjg5MX0.qiQzxhYAgd3S_PZUBrT0eYsMfPgSRqP9j7LQq1h4iQE';
+
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const chatBox = document.getElementById('chatBox');
+    const messageInput = document.getElementById('messageInput');
+    const sendButton = document.getElementById('sendButton');
+
+    // Function to display messages
+    function displayMessage(message, isOwnMessage = false) {
+      const messageDiv = document.createElement('div');
+      messageDiv.classList.add('message');
+      if (isOwnMessage) messageDiv.classList.add('own');
+      messageDiv.textContent = message;
+      chatBox.appendChild(messageDiv);
+      chatBox.scrollTop = chatBox.scrollHeight; // Auto-scroll
+    }
+
+    // Load existing messages
+    async function loadMessages() {
+      const { data: messages, error } = await supabase
+        .from('messages')
+        .select('*')
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        console.error('Error loading messages:', error);
+        return;
+      }
+
+      messages.forEach(msg => displayMessage(msg.content));
+    }
+
+    // Listen for new messages in real-time
+    supabase
+      .from('messages')
+      .on('INSERT', payload => {
+        displayMessage(payload.new.content);
+      })
+      .subscribe();
+
+    // Send a new message
+    async function sendMessage() {
+      const message = messageInput.value.trim();
+      if (!message) return;
+
+      const { error } = await supabase
+        .from('messages')
+        .insert([{ content: message }]);
+
+      if (error) {
+        console.error('Error sending message:', error);
+        return;
+      }
+
+      displayMessage(message, true);
+      messageInput.value = '';
+    }
+
+    sendButton.addEventListener('click', sendMessage);
+    messageInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') sendMessage();
+    });
+
+    // Load messages on page load
+    loadMessages();
+  </script>
+</body>
+</html>
