@@ -15,6 +15,8 @@
       --muted: #94a3b8;
       --accent: #38bdf8;
       --border: #1e293b;
+      --skeleton: #1e293b;
+      --skeleton-highlight: #334155;
     }
 
     * { box-sizing: border-box; font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif; }
@@ -105,6 +107,36 @@
 
     .status { text-align: center; padding: 2rem; color: var(--muted); }
 
+    /* Skeleton Styles */
+    .skeleton {
+      background: var(--skeleton);
+      border-radius: 8px;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0% { background-color: var(--skeleton); }
+      50% { background-color: var(--skeleton-highlight); }
+      100% { background-color: var(--skeleton); }
+    }
+
+    .skeleton-avatar {
+      width: 42px; height: 42px; border-radius: 50%;
+    }
+
+    .skeleton-line {
+      height: 16px; margin: 8px 0;
+    }
+
+    .skeleton-line.short { width: 120px; }
+    .skeleton-line.medium { width: 200px; }
+    .skeleton-line.long { width: 100%; }
+    .skeleton-line.full { width: 100%; }
+
+    .skeleton-image {
+      width: 100%; height: 300px; border-radius: 12px; margin-top: 1rem;
+    }
+
     footer { text-align: center; padding: 2rem; font-size: 0.85rem; color: var(--muted); }
   </style>
 </head>
@@ -130,8 +162,10 @@
     </div>
   </div>
 
-  <div id="postsContainer" class="posts"></div>
-  <div id="status" class="status">Loading posts...</div>
+  <div id="postsContainer" class="posts">
+    <!-- Skeleton posts will be injected here on load -->
+  </div>
+  <div id="status" class="status" style="display:none;">No posts yet. Be the first!</div>
 </main>
 
 <footer>Auth powered by Supabase • © 2025–2026</footer>
@@ -146,13 +180,46 @@
   let currentUsername = null;
   let currentAvatarUrl = null;
   let selectedImage = null;
+  let hasInitialized = false;
 
-  // FIXED: Only one auth listener to prevent double loading
+  // Show skeleton loaders immediately
+  function showSkeletonLoaders(count = 4) {
+    const container = document.getElementById("postsContainer");
+    container.innerHTML = "";
+
+    for (let i = 0; i < count; i++) {
+      const skeletonPost = document.createElement("div");
+      skeletonPost.className = "post";
+      skeletonPost.innerHTML = `
+        <div class="post-header">
+          <div class="skeleton skeleton-avatar"></div>
+          <div style="flex:1;">
+            <div class="skeleton skeleton-line short"></div>
+            <div class="skeleton skeleton-line medium"></div>
+          </div>
+        </div>
+        <div class="skeleton skeleton-line long"></div>
+        <div class="skeleton skeleton-line full"></div>
+        <div class="skeleton skeleton-line medium"></div>
+        ${i % 2 === 0 ? '<div class="skeleton skeleton-image"></div>' : ''}
+      `;
+      container.appendChild(skeletonPost);
+    }
+
+    document.getElementById("status").style.display = "none";
+  }
+
+  // Robust auth handling
   supabase.auth.onAuthStateChange((_, session) => {
     if (session) {
-      init(session.user);
+      if (!hasInitialized) {
+        hasInitialized = true;
+        init(session.user);
+      }
     } else {
-      window.location.href = "index.html";
+      if (!hasInitialized) {
+        window.location.href = "index.html";
+      }
     }
   });
 
@@ -160,6 +227,9 @@
     currentUser = user;
     currentAvatarUrl = user.user_metadata.avatar_url;
     currentUsername = user.user_metadata.preferred_username || user.user_metadata.login || user.email.split('@')[0];
+
+    // Show skeletons while loading real posts
+    showSkeletonLoaders();
     loadPosts();
   }
 
@@ -265,7 +335,7 @@
       imagePreview.style.display = "none";
       imageInput.value = "";
       updatePostButton();
-      loadPosts();
+      loadPosts(); // Will replace skeletons with new content including the fresh post
     }
 
     postBtn.textContent = "Post";
@@ -281,19 +351,21 @@
 
     if (error) {
       document.getElementById("status").textContent = "Error loading posts";
+      document.getElementById("status").style.display = "block";
       return;
     }
 
     const container = document.getElementById("postsContainer");
     container.innerHTML = "";
-    document.getElementById("status").style.display = posts.length ? "none" : "block";
 
     if (!posts.length) {
-      document.getElementById("status").textContent = "No posts yet. Be the first!";
+      document.getElementById("status").style.display = "block";
       return;
     }
 
-    // Fetch profiles for usernames and avatars
+    document.getElementById("status").style.display = "none";
+
+    // Fetch profiles
     let profiles = {};
     try {
       const { data } = await supabase.from("profiles").select("id, username, avatar_url");
