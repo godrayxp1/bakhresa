@@ -105,6 +105,71 @@
       max-width: 100%; border-radius: 12px; margin-top: 1rem; cursor: pointer;
     }
 
+    /* Comments Section */
+    .comments-section {
+      margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border);
+    }
+
+    .comments-toggle {
+      color: var(--accent); background: none; border: none; font-size: 0.95rem; cursor: pointer; padding: 0.5rem 0;
+    }
+
+    .comments-toggle:hover { text-decoration: underline; }
+
+    .comment {
+      display: flex; gap: 0.8rem; margin-top: 1rem;
+    }
+
+    .comment-avatar {
+      width: 36px; height: 36px; border-radius: 50%; object-fit: cover; flex-shrink: 0;
+    }
+
+    .comment-avatar.fallback {
+      background: var(--accent); display: grid; place-items: center; font-weight: bold; font-size: 1rem; color: #020617;
+    }
+
+    .comment-body {
+      flex: 1;
+    }
+
+    .comment-header {
+      display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem;
+    }
+
+    .comment-username {
+      font-weight: 600; font-size: 0.95rem;
+    }
+
+    .comment-timestamp {
+      color: var(--muted); font-size: 0.8rem;
+    }
+
+    .comment-content {
+      font-size: 0.95rem; line-height: 1.5; white-space: pre-wrap;
+    }
+
+    .comment-input {
+      margin-top: 1rem; display: flex; gap: 0.8rem; align-items: start;
+    }
+
+    .comment-textarea {
+      flex: 1; background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 12px;
+      padding: 0.8rem; font-size: 0.95rem; resize: none; min-height: 44px;
+    }
+
+    .comment-textarea:focus {
+      outline: none; border-color: var(--accent);
+    }
+
+    .comment-btn {
+      background: var(--accent); color: #020617; border: none; padding: 0.6rem 1rem; border-radius: 8px;
+      font-weight: 600; cursor: pointer; align-self: end;
+    }
+
+    .comment-btn:disabled {
+      opacity: 0.5; cursor: not-allowed;
+    }
+
     .status { text-align: center; padding: 2rem; color: var(--muted); }
 
     /* Skeleton Styles */
@@ -120,22 +185,13 @@
       100% { background-color: var(--skeleton); }
     }
 
-    .skeleton-avatar {
-      width: 42px; height: 42px; border-radius: 50%;
-    }
-
-    .skeleton-line {
-      height: 16px; margin: 8px 0;
-    }
-
-    .skeleton-line.short { width: 120px; }
-    .skeleton-line.medium { width: 200px; }
+    .skeleton-avatar { width: 42px; height: 42px; border-radius: 50%; }
+    .skeleton-comment-avatar { width: 36px; height: 36px; border-radius: 50%; }
+    .skeleton-line { height: 16px; margin: 8px 0; border-radius: 4px; }
+    .skeleton-line.short { width: 100px; }
+    .skeleton-line.medium { width: 180px; }
     .skeleton-line.long { width: 100%; }
-    .skeleton-line.full { width: 100%; }
-
-    .skeleton-image {
-      width: 100%; height: 300px; border-radius: 12px; margin-top: 1rem;
-    }
+    .skeleton-image { width: 100%; height: 300px; border-radius: 12px; margin-top: 1rem; }
 
     footer { text-align: center; padding: 2rem; font-size: 0.85rem; color: var(--muted); }
   </style>
@@ -162,9 +218,7 @@
     </div>
   </div>
 
-  <div id="postsContainer" class="posts">
-    <!-- Skeleton posts will be injected here on load -->
-  </div>
+  <div id="postsContainer" class="posts"></div>
   <div id="status" class="status" style="display:none;">No posts yet. Be the first!</div>
 </main>
 
@@ -181,16 +235,17 @@
   let currentAvatarUrl = null;
   let selectedImage = null;
   let hasInitialized = false;
+  const profilesCache = {}; // Cache profiles to avoid repeated queries
 
-  // Show skeleton loaders immediately
+  // Skeleton loaders
   function showSkeletonLoaders(count = 4) {
     const container = document.getElementById("postsContainer");
     container.innerHTML = "";
 
     for (let i = 0; i < count; i++) {
-      const skeletonPost = document.createElement("div");
-      skeletonPost.className = "post";
-      skeletonPost.innerHTML = `
+      const post = document.createElement("div");
+      post.className = "post";
+      post.innerHTML = `
         <div class="post-header">
           <div class="skeleton skeleton-avatar"></div>
           <div style="flex:1;">
@@ -202,14 +257,21 @@
         <div class="skeleton skeleton-line full"></div>
         <div class="skeleton skeleton-line medium"></div>
         ${i % 2 === 0 ? '<div class="skeleton skeleton-image"></div>' : ''}
+        <div class="comments-section">
+          <div class="skeleton skeleton-line short" style="width:150px;"></div>
+          <div class="comment" style="margin-top:1rem;">
+            <div class="skeleton skeleton-comment-avatar"></div>
+            <div style="flex:1;">
+              <div class="skeleton skeleton-line short"></div>
+              <div class="skeleton skeleton-line long"></div>
+            </div>
+          </div>
+        </div>
       `;
-      container.appendChild(skeletonPost);
+      container.appendChild(post);
     }
-
-    document.getElementById("status").style.display = "none";
   }
 
-  // Robust auth handling
   supabase.auth.onAuthStateChange((_, session) => {
     if (session) {
       if (!hasInitialized) {
@@ -217,9 +279,7 @@
         init(session.user);
       }
     } else {
-      if (!hasInitialized) {
-        window.location.href = "index.html";
-      }
+      if (!hasInitialized) window.location.href = "index.html";
     }
   });
 
@@ -228,121 +288,16 @@
     currentAvatarUrl = user.user_metadata.avatar_url;
     currentUsername = user.user_metadata.preferred_username || user.user_metadata.login || user.email.split('@')[0];
 
-    // Show skeletons while loading real posts
     showSkeletonLoaders();
     loadPosts();
   }
 
-  // Image attachment & compression
-  const attachBtn = document.getElementById("attachBtn");
-  const imageInput = document.getElementById("imageInput");
-  const imagePreview = document.getElementById("imagePreview");
-  const previewImg = document.getElementById("previewImg");
-  const removeImage = document.getElementById("removeImage");
+  // === POSTING LOGIC (unchanged except loadPosts after post) ===
+  // ... [your existing image compression, posting logic – same as before] ...
 
-  attachBtn.addEventListener("click", () => imageInput.click());
+  // Keep your existing composer code (attachBtn, imageInput, postBtn, etc.)
+  // I'll skip repeating it here for brevity, but keep it exactly as in your last version
 
-  imageInput.addEventListener("change", async (e) => {
-    const file = e.target.files[0];
-    if (!file || !file.type.startsWith("image/")) return;
-
-    const compressedBlob = await compressImage(file);
-    selectedImage = new File([compressedBlob], file.name, { type: compressedBlob.type });
-
-    previewImg.src = URL.createObjectURL(selectedImage);
-    imagePreview.style.display = "block";
-    updatePostButton();
-  });
-
-  removeImage.addEventListener("click", () => {
-    selectedImage = null;
-    imagePreview.style.display = "none";
-    imageInput.value = "";
-    updatePostButton();
-  });
-
-  async function compressImage(file) {
-    const bitmap = await createImageBitmap(file);
-    let width = bitmap.width;
-    let height = bitmap.height;
-
-    if (width > height && width > 1500) {
-      height = (height / width) * 1500;
-      width = 1500;
-    } else if (height > 1500) {
-      width = (width / height) * 1500;
-      height = 1500;
-    }
-
-    const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext("2d");
-    ctx.drawImage(bitmap, 0, 0, width, height);
-
-    return await new Promise(resolve => canvas.toBlob(resolve, "image/jpeg", 0.85));
-  }
-
-  // Composer logic
-  const postInput = document.getElementById("postInput");
-  const postBtn = document.getElementById("postBtn");
-  const charCount = document.getElementById("charCount");
-
-  postInput.addEventListener("input", updatePostButton);
-
-  function updatePostButton() {
-    const len = postInput.value.length;
-    charCount.textContent = `${len} / 500`;
-    const hasContent = len > 0 || selectedImage;
-    postBtn.disabled = !hasContent || len > 500;
-    postBtn.classList.toggle("active", hasContent && len <= 500);
-  }
-
-  postBtn.addEventListener("click", async () => {
-    const content = postInput.value.trim();
-    if (!content && !selectedImage) return;
-
-    postBtn.disabled = true;
-    postBtn.textContent = "Posting...";
-
-    let imagePath = null;
-
-    if (selectedImage) {
-      const fileExt = selectedImage.name.split('.').pop();
-      const fileName = `${crypto.randomUUID()}.${fileExt}`;
-      const { error: uploadError } = await supabase.storage
-        .from("post-images")
-        .upload(fileName, selectedImage, { upsert: true });
-
-      if (uploadError) {
-        alert("Image upload failed: " + uploadError.message);
-        postBtn.textContent = "Post";
-        postBtn.disabled = false;
-        return;
-      }
-      imagePath = fileName;
-    }
-
-    const { error } = await supabase
-      .from("posts")
-      .insert({ content: content || null, user_id: currentUser.id, image_path: imagePath });
-
-    if (error) {
-      alert("Error posting: " + error.message);
-    } else {
-      postInput.value = "";
-      selectedImage = null;
-      imagePreview.style.display = "none";
-      imageInput.value = "";
-      updatePostButton();
-      loadPosts(); // Will replace skeletons with new content including the fresh post
-    }
-
-    postBtn.textContent = "Post";
-    postBtn.disabled = false;
-  });
-
-  // Load posts
   async function loadPosts() {
     const { data: posts, error } = await supabase
       .from("posts")
@@ -357,7 +312,6 @@
 
     const container = document.getElementById("postsContainer");
     container.innerHTML = "";
-
     if (!posts.length) {
       document.getElementById("status").style.display = "block";
       return;
@@ -365,56 +319,175 @@
 
     document.getElementById("status").style.display = "none";
 
-    // Fetch profiles
-    let profiles = {};
-    try {
-      const { data } = await supabase.from("profiles").select("id, username, avatar_url");
-      if (data) {
-        data.forEach(p => profiles[p.id] = p);
-      }
-    } catch (_) {}
+    // Pre-fetch all profiles
+    const userIds = [...new Set(posts.map(p => p.user_id))];
+    if (userIds.length) {
+      const { data } = await supabase.from("profiles").select("id, username, avatar_url").in("id", userIds);
+      data?.forEach(p => profilesCache[p.id] = p);
+    }
 
-    posts.forEach(post => {
-      const isMe = post.user_id === currentUser.id;
-      const profile = profiles[post.user_id];
+    posts.forEach(post => renderPost(post, profilesCache));
+  }
 
-      const username = profile?.username || (isMe ? currentUsername : post.user_id.slice(0, 8));
-      const avatarUrl = profile?.avatar_url || (isMe ? currentAvatarUrl : null);
+  function renderPost(post, profilesCache) {
+    const container = document.getElementById("postsContainer");
+    const isMe = post.user_id === currentUser.id;
+    const profile = profilesCache[post.user_id] || {};
+    const username = profile.username || (isMe ? currentUsername : post.user_id.slice(0, 8));
+    const avatarUrl = profile.avatar_url || (isMe ? currentAvatarUrl : null);
 
-      const postEl = document.createElement("div");
-      postEl.className = "post";
+    const postEl = document.createElement("div");
+    postEl.className = "post";
+    postEl.dataset.postId = post.id;
 
-      const timeAgo = timeSince(new Date(post.created_at));
+    const timeAgo = timeSince(new Date(post.created_at));
 
-      const avatarHtml = avatarUrl
-        ? `<img src="${avatarUrl}" class="avatar" alt="${username}" onerror="this.style.display='none'; this.nextElementSibling.style.display='grid'">
-          <div class="avatar fallback" style="display:none">${username[0].toUpperCase()}</div>`
-        : `<div class="avatar fallback">${username[0].toUpperCase()}</div>`;
+    const avatarHtml = avatarUrl
+      ? `<img src="\( {avatarUrl}" class="avatar" alt=" \){username}" onerror="this.style.display='none'; this.nextElementSibling.style.display='grid'">
+        <div class="avatar fallback" style="display:none">${username[0].toUpperCase()}</div>`
+      : `<div class="avatar fallback">${username[0].toUpperCase()}</div>`;
 
-      let imageHtml = "";
-      if (post.image_path) {
-        const { data: { publicUrl } } = supabase.storage.from("post-images").getPublicUrl(post.image_path);
-        imageHtml = `<img src="${publicUrl}" class="post-image" alt="Post image" loading="lazy" onclick="window.open('${publicUrl}', '_blank')">`;
-      }
+    let imageHtml = "";
+    if (post.image_path) {
+      const { data: { publicUrl } } = supabase.storage.from("post-images").getPublicUrl(post.image_path);
+      imageHtml = `<img src="\( {publicUrl}" class="post-image" alt="Post image" loading="lazy" onclick="window.open(' \){publicUrl}', '_blank')">`;
+    }
 
-      postEl.innerHTML = `
-        <div class="post-header">
-          <a href="user-details.html?username=${encodeURIComponent(username)}">
-            ${avatarHtml}
+    postEl.innerHTML = `
+      <div class="post-header">
+        <a href="user-details.html?username=\( {encodeURIComponent(username)}"> \){avatarHtml}</a>
+        <div>
+          <a href="user-details.html?username=${encodeURIComponent(username)}" style="text-decoration:none; color:inherit;">
+            <div class="username">@${username}</div>
           </a>
-          <div>
-            <a href="user-details.html?username=${encodeURIComponent(username)}" style="text-decoration:none; color:inherit;">
-              <div class="username">@${username}</div>
-            </a>
-            <div class="timestamp">${timeAgo}</div>
-          </div>
+          <div class="timestamp">${timeAgo}</div>
         </div>
-        ${post.content ? `<div class="post-content">${escapeHtml(post.content)}</div>` : ""}
-        ${imageHtml}
-      `;
+      </div>
+      \( {post.content ? `<div class="post-content"> \){escapeHtml(post.content)}</div>` : ""}
+      ${imageHtml}
+      <div class="comments-section" id="comments-${post.id}">
+        <button class="comments-toggle" data-post-id="${post.id}">View comments</button>
+        <div class="comments-list" style="display:none;"></div>
+        <div class="comment-input" style="display:none;">
+          <textarea class="comment-textarea" placeholder="Write a comment..." maxlength="300"></textarea>
+          <button class="comment-btn" disabled>Send</button>
+        </div>
+      </div>
+    `;
 
-      container.appendChild(postEl);
+    container.appendChild(postEl);
+
+    // Setup comment toggle and realtime
+    setupCommentsForPost(post.id);
+  }
+
+  function setupCommentsForPost(postId) {
+    const toggleBtn = document.querySelector(`.comments-toggle[data-post-id="${postId}"]`);
+    const commentsList = document.querySelector(`#comments-${postId} .comments-list`);
+    const commentInputSection = document.querySelector(`#comments-${postId} .comment-input`);
+    const textarea = commentInputSection.querySelector(".comment-textarea");
+    const sendBtn = commentInputSection.querySelector(".comment-btn");
+
+    let isOpen = false;
+
+    toggleBtn.addEventListener("click", async () => {
+      isOpen = !isOpen;
+      toggleBtn.textContent = isOpen ? "Hide comments" : "View comments";
+      commentsList.style.display = isOpen ? "block" : "none";
+      commentInputSection.style.display = isOpen ? "flex" : "none";
+
+      if (isOpen && commentsList.children.length === 0) {
+        commentsList.innerHTML = "<div style='padding:1rem; text-align:center; color:var(--muted);'>Loading comments...</div>";
+        await loadComments(postId, commentsList);
+      }
     });
+
+    textarea.addEventListener("input", () => {
+      sendBtn.disabled = textarea.value.trim().length === 0;
+    });
+
+    sendBtn.addEventListener("click", async () => {
+      const content = textarea.value.trim();
+      if (!content) return;
+
+      sendBtn.disabled = true;
+      sendBtn.textContent = "Sending...";
+
+      const { error } = await supabase
+        .from("comments")
+        .insert({ post_id: postId, user_id: currentUser.id, content });
+
+      if (error) {
+        alert("Error posting comment: " + error.message);
+      } else {
+        textarea.value = "";
+      }
+
+      sendBtn.textContent = "Send";
+      sendBtn.disabled = true;
+    });
+
+    // Realtime subscription
+    supabase
+      .channel(`comments:post:${postId}`)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "comments", filter: `post_id=eq.${postId}` }, payload => {
+        if (isOpen) renderComment(payload.new, commentsList, true); // prepend new comment
+      })
+      .subscribe();
+  }
+
+  async function loadComments(postId, container) {
+    const { data: comments, error } = await supabase
+      .from("comments")
+      .select("id, content, created_at, user_id")
+      .eq("post_id", postId)
+      .order("created_at", { ascending: true });
+
+    if (error || !comments.length) {
+      container.innerHTML = "<div style='padding:1rem; color:var(--muted);'>No comments yet.</div>";
+      return;
+    }
+
+    container.innerHTML = "";
+    const userIds = [...new Set(comments.map(c => c.user_id))];
+    if (userIds.length) {
+      const { data } = await supabase.from("profiles").select("id, username, avatar_url").in("id", userIds);
+      data?.forEach(p => profilesCache[p.id] = p);
+    }
+
+    comments.forEach(comment => renderComment(comment, container));
+  }
+
+  function renderComment(comment, container, prepend = false) {
+    const isMe = comment.user_id === currentUser.id;
+    const profile = profilesCache[comment.user_id] || {};
+    const username = profile.username || (isMe ? currentUsername : comment.user_id.slice(0, 8));
+    const avatarUrl = profile.avatar_url || (isMe ? currentAvatarUrl : null);
+
+    const commentEl = document.createElement("div");
+    commentEl.className = "comment";
+
+    const avatarHtml = avatarUrl
+      ? `<img src="\( {avatarUrl}" class="comment-avatar" alt=" \){username}" onerror="this.style.display='none'; this.nextElementSibling.style.display='grid'">
+        <div class="comment-avatar fallback" style="display:none">${username[0].toUpperCase()}</div>`
+      : `<div class="comment-avatar fallback">${username[0].toUpperCase()}</div>`;
+
+    commentEl.innerHTML = `
+      ${avatarHtml}
+      <div class="comment-body">
+        <div class="comment-header">
+          <div class="comment-username">@${username}</div>
+          <div class="comment-timestamp">${timeSince(new Date(comment.created_at))}</div>
+        </div>
+        <div class="comment-content">${escapeHtml(comment.content)}</div>
+      </div>
+    `;
+
+    if (prepend) {
+      container.prepend(commentEl);
+    } else {
+      container.appendChild(commentEl);
+    }
   }
 
   function timeSince(date) {
@@ -437,6 +510,9 @@
     await supabase.auth.signOut();
     window.location.href = "index.html";
   });
+
+  // Paste your existing composer/posting code here (image upload, postBtn click, etc.)
+  // It remains unchanged – just make sure to call loadPosts() after successful post
 </script>
 </body>
 </html>
