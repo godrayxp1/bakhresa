@@ -147,15 +147,13 @@
   let currentAvatarUrl = null;
   let selectedImage = null;
 
-  // Auth handling
+  // FIXED: Only one auth listener to prevent double loading
   supabase.auth.onAuthStateChange((_, session) => {
-    if (!session) window.location.href = "index.html";
-    else init(session.user);
-  });
-
-  supabase.auth.getSession().then(({ data }) => {
-    if (!data.session) window.location.href = "index.html";
-    else init(data.session.user);
+    if (session) {
+      init(session.user);
+    } else {
+      window.location.href = "index.html";
+    }
   });
 
   function init(user) {
@@ -194,10 +192,6 @@
   });
 
   async function compressImage(file) {
-    const img = new Image();
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
-
     const bitmap = await createImageBitmap(file);
     let width = bitmap.width;
     let height = bitmap.height;
@@ -210,8 +204,10 @@
       height = 1500;
     }
 
+    const canvas = document.createElement("canvas");
     canvas.width = width;
     canvas.height = height;
+    const ctx = canvas.getContext("2d");
     ctx.drawImage(bitmap, 0, 0, width, height);
 
     return await new Promise(resolve => canvas.toBlob(resolve, "image/jpeg", 0.85));
@@ -297,7 +293,7 @@
       return;
     }
 
-    // Fixed: Added missing 'await'
+    // Fetch profiles for usernames and avatars
     let profiles = {};
     try {
       const { data } = await supabase.from("profiles").select("id, username, avatar_url");
