@@ -235,7 +235,7 @@
   let currentAvatarUrl = null;
   let selectedImage = null;
   let hasInitialized = false;
-  const profilesCache = {}; // Cache profiles to avoid repeated queries
+  const profilesCache = {};
 
   // Skeleton loaders
   function showSkeletonLoaders(count = 4) {
@@ -292,12 +292,116 @@
     loadPosts();
   }
 
-  // === POSTING LOGIC (unchanged except loadPosts after post) ===
-  // ... [your existing image compression, posting logic – same as before] ...
+  // Image attachment & compression
+  const attachBtn = document.getElementById("attachBtn");
+  const imageInput = document.getElementById("imageInput");
+  const imagePreview = document.getElementById("imagePreview");
+  const previewImg = document.getElementById("previewImg");
+  const removeImage = document.getElementById("removeImage");
 
-  // Keep your existing composer code (attachBtn, imageInput, postBtn, etc.)
-  // I'll skip repeating it here for brevity, but keep it exactly as in your last version
+  attachBtn.addEventListener("click", () => imageInput.click());
 
+  imageInput.addEventListener("change", async (e) => {
+    const file = e.target.files[0];
+    if (!file || !file.type.startsWith("image/")) return;
+
+    const compressedBlob = await compressImage(file);
+    selectedImage = new File([compressedBlob], file.name, { type: compressedBlob.type });
+
+    previewImg.src = URL.createObjectURL(selectedImage);
+    imagePreview.style.display = "block";
+    updatePostButton();
+  });
+
+  removeImage.addEventListener("click", () => {
+    selectedImage = null;
+    imagePreview.style.display = "none";
+    imageInput.value = "";
+    updatePostButton();
+  });
+
+  async function compressImage(file) {
+    const bitmap = await createImageBitmap(file);
+    let width = bitmap.width;
+    let height = bitmap.height;
+
+    if (width > height && width > 1500) {
+      height = (height / width) * 1500;
+      width = 1500;
+    } else if (height > 1500) {
+      width = (width / height) * 1500;
+      height = 1500;
+    }
+
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(bitmap, 0, 0, width, height);
+
+    return await new Promise(resolve => canvas.toBlob(resolve, "image/jpeg", 0.85));
+  }
+
+  // Composer logic
+  const postInput = document.getElementById("postInput");
+  const postBtn = document.getElementById("postBtn");
+  const charCount = document.getElementById("charCount");
+
+  postInput.addEventListener("input", updatePostButton);
+
+  function updatePostButton() {
+    const len = postInput.value.length;
+    charCount.textContent = `${len} / 500`;
+    const hasContent = len > 0 || selectedImage;
+    postBtn.disabled = !hasContent || len > 500;
+    postBtn.classList.toggle("active", hasContent && len <= 500);
+  }
+
+  postBtn.addEventListener("click", async () => {
+    const content = postInput.value.trim();
+    if (!content && !selectedImage) return;
+
+    postBtn.disabled = true;
+    postBtn.textContent = "Posting...";
+
+    let imagePath = null;
+
+    if (selectedImage) {
+      const fileExt = selectedImage.name.split('.').pop();
+      const fileName = `\( {crypto.randomUUID()}. \){fileExt}`;
+      const { error: uploadError } = await supabase.storage
+        .from("post-images")
+        .upload(fileName, selectedImage, { upsert: true });
+
+      if (uploadError) {
+        alert("Image upload failed: " + uploadError.message);
+        postBtn.textContent = "Post";
+        postBtn.disabled = false;
+        return;
+      }
+      imagePath = fileName;
+    }
+
+    const { error } = await supabase
+      .from("posts")
+      .insert({ content: content || null, user_id: currentUser.id, image_path: imagePath });
+
+    if (error) {
+      alert("Error posting: " + error.message);
+    } else {
+      postInput.value = "";
+      selectedImage = null;
+      imagePreview.style.display = "none";
+      imageInput.value = "";
+      updatePostButton();
+      loadPosts();
+    }
+
+    postBtn.textContent = "Post";
+    postBtn.disabled = false;
+  });
+
+  // Load posts
   async function loadPosts() {
     const { data: posts, error } = await supabase
       .from("posts")
@@ -305,32 +409,31 @@
       .order("created_at", { ascending: false });
 
     if (error) {
-      document.getElementById("status").textContent = "Error loading posts";
+      document.getElementById("status").textContent = "Error loading posts: " + error.message;
       document.getElementById("status").style.display = "block";
       return;
     }
 
     const container = document.getElementById("postsContainer");
     container.innerHTML = "";
-    if (!posts.length) {
+    if (!posts || posts.length === 0) {
       document.getElementById("status").style.display = "block";
       return;
     }
 
     document.getElementById("status").style.display = "none";
 
-    // Pre-fetch all profiles
+    // Pre-fetch profiles
     const userIds = [...new Set(posts.map(p => p.user_id))];
-    if (userIds.length) {
+    if (userIds.length > 0) {
       const { data } = await supabase.from("profiles").select("id, username, avatar_url").in("id", userIds);
-      data?.forEach(p => profilesCache[p.id] = p);
+      if (data) data.forEach(p => profilesCache[p.id] = p);
     }
 
-    posts.forEach(post => renderPost(post, profilesCache));
+    posts.forEach(post => renderPost(post));
   }
 
-  function renderPost(post, profilesCache) {
-    const container = document.getElementById("postsContainer");
+  function renderPost(post) {
     const isMe = post.user_id === currentUser.id;
     const profile = profilesCache[post.user_id] || {};
     const username = profile.username || (isMe ? currentUsername : post.user_id.slice(0, 8));
@@ -375,9 +478,8 @@
       </div>
     `;
 
-    container.appendChild(postEl);
+    document.getElementById("postsContainer").appendChild(postEl);
 
-    // Setup comment toggle and realtime
     setupCommentsForPost(post.id);
   }
 
@@ -427,11 +529,11 @@
       sendBtn.disabled = true;
     });
 
-    // Realtime subscription
+    // Real-time new comments
     supabase
       .channel(`comments:post:${postId}`)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "comments", filter: `post_id=eq.${postId}` }, payload => {
-        if (isOpen) renderComment(payload.new, commentsList, true); // prepend new comment
+        if (isOpen) renderComment(payload.new, commentsList, true);
       })
       .subscribe();
   }
@@ -443,16 +545,16 @@
       .eq("post_id", postId)
       .order("created_at", { ascending: true });
 
-    if (error || !comments.length) {
+    if (error || !comments || comments.length === 0) {
       container.innerHTML = "<div style='padding:1rem; color:var(--muted);'>No comments yet.</div>";
       return;
     }
 
     container.innerHTML = "";
     const userIds = [...new Set(comments.map(c => c.user_id))];
-    if (userIds.length) {
+    if (userIds.length > 0) {
       const { data } = await supabase.from("profiles").select("id, username, avatar_url").in("id", userIds);
-      data?.forEach(p => profilesCache[p.id] = p);
+      if (data) data.forEach(p => profilesCache[p.id] = p);
     }
 
     comments.forEach(comment => renderComment(comment, container));
@@ -472,47 +574,4 @@
         <div class="comment-avatar fallback" style="display:none">${username[0].toUpperCase()}</div>`
       : `<div class="comment-avatar fallback">${username[0].toUpperCase()}</div>`;
 
-    commentEl.innerHTML = `
-      ${avatarHtml}
-      <div class="comment-body">
-        <div class="comment-header">
-          <div class="comment-username">@${username}</div>
-          <div class="comment-timestamp">${timeSince(new Date(comment.created_at))}</div>
-        </div>
-        <div class="comment-content">${escapeHtml(comment.content)}</div>
-      </div>
-    `;
-
-    if (prepend) {
-      container.prepend(commentEl);
-    } else {
-      container.appendChild(commentEl);
-    }
-  }
-
-  function timeSince(date) {
-    const s = Math.floor((Date.now() - date) / 1000);
-    if (s < 60) return s + "s";
-    if (s < 3600) return Math.floor(s / 60) + "m";
-    if (s < 86400) return Math.floor(s / 3600) + "h";
-    if (s < 2592000) return Math.floor(s / 86400) + "d";
-    if (s < 31536000) return Math.floor(s / 2592000) + "mo";
-    return Math.floor(s / 31536000) + "y";
-  }
-
-  function escapeHtml(text) {
-    const div = document.createElement("div");
-    div.textContent = text;
-    return div.innerHTML;
-  }
-
-  document.getElementById("signoutBtn").addEventListener("click", async () => {
-    await supabase.auth.signOut();
-    window.location.href = "index.html";
-  });
-
-  // Paste your existing composer/posting code here (image upload, postBtn click, etc.)
-  // It remains unchanged – just make sure to call loadPosts() after successful post
-</script>
-</body>
-</html>
+    commentEl.in
