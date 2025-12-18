@@ -15,8 +15,6 @@
       --muted: #94a3b8;
       --accent: #38bdf8;
       --border: #1e293b;
-      --skeleton: #1e293b;
-      --skeleton-highlight: #334155;
     }
 
     * { box-sizing: border-box; font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif; }
@@ -57,11 +55,9 @@
       max-width: 100%; max-height: 300px; border-radius: 12px; margin-top: 0.8rem; object-fit: contain;
     }
 
-    .preview-container { position: relative; display: inline-block; }
-
     .remove-image {
       position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.6); color: white;
-      border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; font-size: 1rem;
+      border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer;
     }
 
     .char-count { color: var(--muted); font-size: 0.85rem; }
@@ -101,7 +97,6 @@
 
     .post-content {
       line-height: 1.6; font-size: 1.05rem; margin-top: 0.5rem; white-space: pre-wrap;
-      word-break: break-word;
     }
 
     .post-image {
@@ -109,36 +104,6 @@
     }
 
     .status { text-align: center; padding: 2rem; color: var(--muted); }
-
-    /* Skeleton Styles */
-    .skeleton {
-      background: var(--skeleton);
-      border-radius: 8px;
-      animation: pulse 1.5s ease-in-out infinite;
-    }
-
-    @keyframes pulse {
-      0% { background-color: var(--skeleton); }
-      50% { background-color: var(--skeleton-highlight); }
-      100% { background-color: var(--skeleton); }
-    }
-
-    .skeleton-avatar {
-      width: 42px; height: 42px; border-radius: 50%;
-    }
-
-    .skeleton-line {
-      height: 16px; margin: 8px 0;
-    }
-
-    .skeleton-line.short { width: 120px; }
-    .skeleton-line.medium { width: 200px; }
-    .skeleton-line.long { width: 100%; }
-    .skeleton-line.full { width: 100%; }
-
-    .skeleton-image {
-      width: 100%; height: 300px; border-radius: 12px; margin-top: 1rem;
-    }
 
     footer { text-align: center; padding: 2rem; font-size: 0.85rem; color: var(--muted); }
   </style>
@@ -153,7 +118,7 @@
 <main>
   <div class="composer">
     <textarea id="postInput" placeholder="What's on your mind?"></textarea>
-    <div id="imagePreview" class="preview-container" style="display:none;">
+    <div id="imagePreview" style="position:relative; display:none;">
       <img id="previewImg" class="preview-image">
       <button class="remove-image" id="removeImage">×</button>
     </div>
@@ -165,78 +130,42 @@
     </div>
   </div>
 
-  <div id="postsContainer" class="posts">
-    <!-- Posts will be injected here -->
-  </div>
-  <div id="status" class="status" style="display:none;">No posts yet. Be the first!</div>
+  <div id="postsContainer" class="posts"></div>
+  <div id="status" class="status">Loading posts...</div>
 </main>
 
 <footer>Auth powered by Supabase • © 2025–2026</footer>
 
 <script>
-  // Supabase credentials as requested (original ones from your code)
-  const SUPABASE_URL = "https://osaxbfinrlnabjllcfgv.supabase.co";
-  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9zYXhiZmlucmxuYWJqbGxjZmd2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU1MDY4OTEsImV4cCI6MjA4MTA4Mjg5MX0.qiQzxhYAgd3S_PZUBrT0eYsMfPgSRqP9j7LQq1h4iQE";
-
-  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const supabase = window.supabase.createClient(
+    "https://osaxbfinrlnabjllcfgv.supabase.co",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9zYXhiZmlucmxuYWJqbGxjZmd2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU1MDY4OTEsImV4cCI6MjA4MTA4Mjg5MX0.qiQzxhYAgd3S_PZUBrT0eYsMfPgSRqP9j7LQq1h4iQE"
+  );
 
   let currentUser = null;
   let currentUsername = null;
   let currentAvatarUrl = null;
-  let selectedImage = null;
-  let hasInitialized = false;
+  let selectedImage = null; // File object
 
-  // Show skeleton loaders on initial load
-  function showSkeletonLoaders(count = 4) {
-    const container = document.getElementById("postsContainer");
-    container.innerHTML = "";
-
-    for (let i = 0; i < count; i++) {
-      const skeletonPost = document.createElement("div");
-      skeletonPost.className = "post";
-      skeletonPost.innerHTML = `
-        <div class="post-header">
-          <div class="skeleton skeleton-avatar"></div>
-          <div style="flex:1;">
-            <div class="skeleton skeleton-line short"></div>
-            <div class="skeleton skeleton-line medium"></div>
-          </div>
-        </div>
-        <div class="skeleton skeleton-line long"></div>
-        <div class="skeleton skeleton-line full"></div>
-        <div class="skeleton skeleton-line medium"></div>
-        ${i % 2 === 0 ? '<div class="skeleton skeleton-image"></div>' : ''}
-      `;
-      container.appendChild(skeletonPost);
-    }
-
-    document.getElementById("status").style.display = "none";
-  }
-
-  // Auth state handling
+  // Auth handling (same as before)
   supabase.auth.onAuthStateChange((_, session) => {
-    if (session?.user) {
-      if (!hasInitialized) {
-        hasInitialized = true;
-        init(session.user);
-      }
-    } else {
-      if (!hasInitialized) {
-        window.location.href = "index.html";
-      }
-    }
+    if (!session) window.location.href = "index.html";
+    else init(session.user);
   });
 
-  async function init(user) {
-    currentUser = user;
-    currentUsername = user.user_metadata?.preferred_username || user.user_metadata?.login || user.email.split('@')[0];
-    currentAvatarUrl = user.user_metadata?.avatar_url;
+  supabase.auth.getSession().then(({ data }) => {
+    if (!data.session) window.location.href = "index.html";
+    else init(data.session.user);
+  });
 
-    showSkeletonLoaders();
+  function init(user) {
+    currentUser = user;
+    currentAvatarUrl = user.user_metadata.avatar_url;
+    currentUsername = user.user_metadata.preferred_username || user.user_metadata.login || user.email.split('@')[0];
     loadPosts();
   }
 
-  // Image attachment & compression
+  // Image attachment
   const attachBtn = document.getElementById("attachBtn");
   const imageInput = document.getElementById("imageInput");
   const imagePreview = document.getElementById("imagePreview");
@@ -249,6 +178,7 @@
     const file = e.target.files[0];
     if (!file || !file.type.startsWith("image/")) return;
 
+    // Compress image client-side
     const compressedBlob = await compressImage(file);
     selectedImage = new File([compressedBlob], file.name, { type: compressedBlob.type });
 
@@ -265,29 +195,31 @@
   });
 
   async function compressImage(file) {
-    const bitmap = await createImageBitmap(file);
-    let { width, height } = bitmap;
+    const img = new Image();
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
 
-    if (Math.max(width, height) > 1500) {
-      if (width > height) {
-        height = Math.round((height / width) * 1500);
-        width = 1500;
-      } else {
-        width = Math.round((width / height) * 1500);
-        height = 1500;
-      }
+    const bitmap = await createImageBitmap(file);
+    let width = bitmap.width;
+    let height = bitmap.height;
+
+    // Limit to max 1500px on longest side (good quality, reasonable size)
+    if (width > height && width > 1500) {
+      height = (height / width) * 1500;
+      width = 1500;
+    } else if (height > 1500) {
+      width = (width / height) * 1500;
+      height = 1500;
     }
 
-    const canvas = document.createElement("canvas");
     canvas.width = width;
     canvas.height = height;
-    const ctx = canvas.getContext("2d");
     ctx.drawImage(bitmap, 0, 0, width, height);
 
-    return await canvas.toBlob(resolve => resolve, "image/jpeg", 0.85);
+    return await new Promise(resolve => canvas.toBlob(resolve, "image/jpeg", 0.85)); // 85% quality JPEG
   }
 
-  // Composer logic
+  // Composer
   const postInput = document.getElementById("postInput");
   const postBtn = document.getElementById("postBtn");
   const charCount = document.getElementById("charCount");
@@ -298,7 +230,7 @@
     const len = postInput.value.length;
     charCount.textContent = `${len} / 500`;
     const hasContent = len > 0 || selectedImage;
-    postBtn.disabled = !(hasContent && len <= 500);
+    postBtn.disabled = !hasContent || len > 500;
     postBtn.classList.toggle("active", hasContent && len <= 500);
   }
 
@@ -312,9 +244,8 @@
     let imagePath = null;
 
     if (selectedImage) {
-      const fileExt = selectedImage.name.split('.').pop() || "jpg";
-      const fileName = `\( {crypto.randomUUID()}. \){fileExt}`;
-
+      const fileExt = selectedImage.name.split('.').pop();
+      const fileName = `${crypto.randomUUID()}.${fileExt}`;
       const { error: uploadError } = await supabase.storage
         .from("post-images")
         .upload(fileName, selectedImage, { upsert: true });
@@ -330,26 +261,24 @@
 
     const { error } = await supabase
       .from("posts")
-      .insert({ 
-        content: content || null, 
-        user_id: currentUser.id, 
-        image_path: imagePath 
-      });
+      .insert({ content: content || null, user_id: currentUser.id, image_path: imagePath });
 
-    if (error) {
-      alert("Error posting: " + error.message);
-    } else {
+    if (error) alert("Error posting: " + error.message);
+    else {
       postInput.value = "";
       selectedImage = null;
       imagePreview.style.display = "none";
       imageInput.value = "";
       updatePostButton();
-      loadPosts(); // Refresh with new post at the top
+      loadPosts();
     }
 
     postBtn.textContent = "Post";
     postBtn.disabled = false;
   });
+
+  // Update posts table (one-time SQL in Supabase editor)
+  // ALTER TABLE posts ADD COLUMN image_path TEXT;
 
   // Load posts
   async function loadPosts() {
@@ -359,61 +288,49 @@
       .order("created_at", { ascending: false });
 
     if (error) {
-      console.error("Error loading posts:", error);
-      document.getElementById("status").textContent = "Error loading posts: Invalid project (requested path is invalid)";
-      document.getElementById("status").style.display = "block";
-      document.getElementById("postsContainer").innerHTML = "";
+      document.getElementById("status").textContent = "Error loading posts";
       return;
     }
 
     const container = document.getElementById("postsContainer");
     container.innerHTML = "";
+    document.getElementById("status").style.display = posts.length ? "none" : "block";
 
-    if (!posts || posts.length === 0) {
-      document.getElementById("status").style.display = "block";
+    if (!posts.length) {
+      document.getElementById("status").textContent = "No posts yet. Be the first!";
       return;
     }
 
-    document.getElementById("status").style.display = "none";
-
-    // Fetch profiles for usernames/avatars
-    const userIds = [...new Set(posts.map(p => p.user_id))];
     let profiles = {};
-    if (userIds.length > 0) {
-      const { data } = await supabase
-        .from("profiles")
-        .select("id, username, avatar_url")
-        .in("id", userIds);
-
-      if (data) {
-        data.forEach(p => (profiles[p.id] = p));
-      }
-    }
+    try {
+      const { data } = await supabase.from("profiles").select("id, username, avatar_url");
+      data.forEach(p => profiles[p.id] = p);
+    } catch (_) {}
 
     posts.forEach(post => {
+      const isMe = post.user_id === currentUser.id;
       const profile = profiles[post.user_id];
-      const isMe = post.user_id === currentUser?.id;
 
-      const username = profile?.username || (isMe ? currentUsername : post.user_id.slice(0, 8));
+      const username = profile?.username || (isMe ? currentUsername : post.user_id.slice(0,8));
       const avatarUrl = profile?.avatar_url || (isMe ? currentAvatarUrl : null);
-
-      const timeAgo = timeSince(new Date(post.created_at));
-
-      let avatarHtml = avatarUrl
-        ? `<img src="\( {avatarUrl}" class="avatar" alt=" \){username}" onerror="this.style.display='none'; this.nextElementSibling.style.display='grid'">`
-        : "";
-      avatarHtml += `<div class="avatar fallback" style="display:\( {avatarUrl ? 'none' : 'grid'}"> \){username[0].toUpperCase()}</div>`;
-
-      let imageHtml = "";
-      if (post.image_path) {
-        const { data: { publicUrl } } = supabase.storage.from("post-images").getPublicUrl(post.image_path);
-        if (publicUrl) {
-          imageHtml = `<img src="\( {publicUrl}" class="post-image" alt="Post image" loading="lazy" onclick="window.open(' \){publicUrl}', '_blank')">`;
-        }
-      }
 
       const postEl = document.createElement("div");
       postEl.className = "post";
+
+      const timeAgo = timeSince(new Date(post.created_at));
+
+      const avatarHtml = avatarUrl
+        ? `<img src="${avatarUrl}" class="avatar" alt="${username}" onerror="this.style.display='none'; this.nextElementSibling.style.display='grid'">`
+        + `<div class="avatar fallback" style="display:none">${username[0].toUpperCase()}</div>`
+        : `<div class="avatar fallback">${username[0].toUpperCase()}</div>`;
+
+      let imageHtml = "";
+      if (post.image_path) {
+        const publicUrl = supabase.storage.from("post-images").getPublicUrl(post.image_path).data.publicUrl;
+        const transformedUrl = `${publicUrl}?width=800&quality=80`; // On-the-fly optimization
+        imageHtml = `<img src="${transformedUrl}" class="post-image" alt="Post image" onclick="window.open('${publicUrl}', '_blank')">`;
+      }
+
       postEl.innerHTML = `
         <div class="post-header">
           <a href="user-details.html?username=${encodeURIComponent(username)}">
@@ -426,21 +343,22 @@
             <div class="timestamp">${timeAgo}</div>
           </div>
         </div>
-        \( {post.content ? `<div class="post-content"> \){escapeHtml(post.content)}</div>` : ""}
+        ${post.content ? `<div class="post-content">${escapeHtml(post.content)}</div>` : ""}
         ${imageHtml}
       `;
+
       container.appendChild(postEl);
     });
   }
 
   function timeSince(date) {
-    const seconds = Math.floor((Date.now() - date) / 1000);
-    if (seconds < 60) return `${seconds}s`;
-    if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
-    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h`;
-    if (seconds < 2592000) return `${Math.floor(seconds / 86400)}d`;
-    if (seconds < 31536000) return `${Math.floor(seconds / 2592000)}mo`;
-    return `${Math.floor(seconds / 31536000)}y`;
+    const s = Math.floor((Date.now() - date) / 1000);
+    if (s < 60) return s + "s";
+    if (s < 3600) return Math.floor(s/60) + "m";
+    if (s < 86400) return Math.floor(s/3600) + "h";
+    if (s < 2592000) return Math.floor(s/86400) + "d";
+    if (s < 31536000) return Math.floor(s/2592000) + "mo";
+    return Math.floor(s/31536000) + "y";
   }
 
   function escapeHtml(text) {
@@ -453,9 +371,6 @@
     await supabase.auth.signOut();
     window.location.href = "index.html";
   });
-
-  // Initial skeleton on page load
-  showSkeletonLoaders();
 </script>
 </body>
 </html>
